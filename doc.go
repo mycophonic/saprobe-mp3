@@ -1,0 +1,2 @@
+// Package mp3 decodes MP3 audio to raw PCM.
+package saprobe_mp3
