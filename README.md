@@ -37,3 +37,4 @@ None (pure Go).
 * [MP3 format notes](./docs/MP3.md)
 * [decoders landscape](./docs/research/DECODERS.md)
 * [encoders landscape](./docs/research/ENCODERS.md)
+* [tests and benchmarks](./docs/QA.md)
