@@ -35,8 +35,8 @@ func readHuffman(
 	var region1Start, region2Start int
 
 	if (sideInfo.WinSwitchFlag[granule][channel] == 1) && (sideInfo.BlockType[granule][channel] == 2) {
-		region1Start = 36                  // sfb[9/3]*3=36
-		region2Start = consts.SamplesPerGr // No Region2 for short block case.
+		region1Start = consts.MixedBlockBoundary // sfb[9/3]*3=36
+		region2Start = consts.SamplesPerGr       // No Region2 for short block case.
 	} else {
 		sfreq := header.SamplingFrequency()
 		lsf := header.LowSamplingFrequency()

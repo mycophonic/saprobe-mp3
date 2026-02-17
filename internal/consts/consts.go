@@ -47,6 +47,10 @@ const (
 	SamplesPerGr  = 576
 	GranulesMpeg1 = 2
 	GranulesMpeg2 = 1
+
+	SfbShortBands      = 12 // MPEG1 short-block scale factor bands per window
+	SfbLongBands       = 21 // MPEG1 long-block SFBs (SCFSI / intensity stereo bound)
+	MixedBlockBoundary = 36 // long-block samples in mixed mode (2 subbands × 18)
 )
 
 // SamplingFrequency represents an MPEG audio sampling frequency index.

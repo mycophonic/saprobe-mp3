@@ -15,6 +15,14 @@ import (
 	"github.com/mycophonic/saprobe-mp3/internal/sideinfo"
 )
 
+const (
+	subbands          = 32   // Layer 3 subband count
+	samplesPerSubband = 18   // time-domain samples per subband per granule
+	vFIFOSize         = 2048 // doubled polyphase synthesis FIFO (1024 logical × 2)
+	globalGainBias    = 210  // ISO 11172-3 §2.4.3.4.7.1 global_gain offset
+	synthSlotSize     = 64   // polyphase synthesis slot size (2 × subbands)
+)
+
 // Frame is a persistent MP3 frame decoder. Allocate once with [NewFrame] and
 // reuse across successive [Frame.Read] / [Frame.Decode] cycles. All inter-frame
 // state (bit reservoir, IMDCT overlap-add, polyphase synthesis FIFO) is carried
@@ -27,14 +35,14 @@ type Frame struct {
 	skipDecode bool // true when reservoir was insufficient; caller should output silence
 
 	// IMDCT overlap-add store, indexed [channel][subband][sample].
-	store [2][32][18]float32
+	store [2][subbands][samplesPerSubband]float32
 
 	// Polyphase synthesis FIFO — doubled circular buffer eliminates the
 	// 960-element shift that the naive implementation performs per call.
 	// Indexed [channel][offset]. Logical size is 1024; the second half
 	// (indices 1024..2047) mirrors the first so that contiguous reads
 	// spanning the wrap boundary need no modular arithmetic.
-	vVec [2][2048]float32
+	vVec [2][vFIFOSize]float32
 	vOff [2]int // current write offset per channel (decremented by 64 each call)
 }
 
@@ -58,8 +66,8 @@ func (f *Frame) Read(source consts.FullReader, position int64) (int64, error) {
 	// prevent corrupted state from propagating to subsequent frames.
 	if pos > position {
 		f.reservoir.Reset()
-		f.store = [2][32][18]float32{}
-		f.vVec = [2][2048]float32{}
+		f.store = [2][subbands][samplesPerSubband]float32{}
+		f.vVec = [2][vFIFOSize]float32{}
 		f.vOff = [2]int{}
 	}
 
@@ -167,7 +175,7 @@ func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 		sfMult2 = 4
 	}
 
-	globalBase := si.GlobalGain[gr][ch] - 210
+	globalBase := si.GlobalGain[gr][ch] - globalGainBias
 	preflag := si.Preflag[gr][ch]
 
 	if si.WinSwitchFlag[gr][ch] == 1 && si.BlockType[gr][ch] == 2 {
@@ -178,7 +186,7 @@ func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 			k := -sfMult2*(md.ScalefacL[gr][ch][0]+preflag*pretab[0]) + globalBase
 			gain := pow2quarter[k+pow2quarterBias]
 
-			for i := range 36 {
+			for i := range consts.MixedBlockBoundary {
 				if i == nextSfb {
 					sfb++
 					nextSfb = sfBandLong[sfb+1]
@@ -194,7 +202,7 @@ func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 			nextShort := sfBandShort[sfb+1] * 3
 			winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
 
-			for i := 36; i < md.Count1[gr][ch]; {
+			for i := consts.MixedBlockBoundary; i < md.Count1[gr][ch]; {
 				if i == nextShort {
 					sfb++
 					nextShort = sfBandShort[sfb+1] * 3
@@ -279,7 +287,7 @@ func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 	nextSfb := sfBandShort[sfb+1] * 3
 	winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
 
-	i := 36
+	i := consts.MixedBlockBoundary
 	if sfb == 0 {
 		i = 0
 	}
@@ -306,7 +314,7 @@ func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 		}
 	}
 
-	j := 3 * sfBandShort[12]
+	j := 3 * sfBandShort[consts.SfbShortBands]
 	copy(md.Is[gr][ch][j:j+3*winLen], reordered[:3*winLen])
 }
 
@@ -350,20 +358,20 @@ func (f *Frame) stereo(gr int, sfBandLong, sfBandShort []int) {
 				}
 			}
 
-			for sfb := 3; sfb < 12; sfb++ {
+			for sfb := 3; sfb < consts.SfbShortBands; sfb++ {
 				if sfBandShort[sfb]*3 >= md.Count1[gr][1] {
 					f.intensityStereoShort(gr, sfb, sfBandShort)
 				}
 			}
 		} else {
-			for sfb := range 12 {
+			for sfb := range consts.SfbShortBands {
 				if sfBandShort[sfb]*3 >= md.Count1[gr][1] {
 					f.intensityStereoShort(gr, sfb, sfBandShort)
 				}
 			}
 		}
 	} else {
-		for sfb := range 21 {
+		for sfb := range consts.SfbLongBands {
 			if sfBandLong[sfb] >= md.Count1[gr][1] {
 				f.intensityStereoLong(gr, sfb, sfBandLong)
 			}
@@ -431,8 +439,8 @@ func (f *Frame) antialias(gr, ch int) {
 
 	for sb := 1; sb < sblim; sb++ {
 		for i := range 8 {
-			li := 18*sb - 1 - i
-			ui := 18*sb + i
+			li := samplesPerSubband*sb - 1 - i
+			ui := samplesPerSubband*sb + i
 			lb := is[li]*csAA[i] - is[ui]*caAA[i]
 			ub := is[ui]*csAA[i] + is[li]*caAA[i]
 			is[li] = lb
@@ -452,14 +460,14 @@ func (f *Frame) hybridSynthesis(gr, ch int) {
 			blockType = 0
 		}
 
-		off := sb * 18
-		freqIn := (*[18]float32)(f.mainData.Is[gr][ch][off : off+18])
+		off := sb * samplesPerSubband
+		freqIn := (*[samplesPerSubband]float32)(f.mainData.Is[gr][ch][off : off+samplesPerSubband])
 
 		imdct.Win(freqIn, blockType, &rawout)
 
-		for i := range 18 {
+		for i := range samplesPerSubband {
 			f.mainData.Is[gr][ch][off+i] = rawout[i] + f.store[ch][sb][i]
-			f.store[ch][sb][i] = rawout[i+18]
+			f.store[ch][sb][i] = rawout[i+samplesPerSubband]
 		}
 	}
 }
@@ -467,9 +475,9 @@ func (f *Frame) hybridSynthesis(gr, ch int) {
 func (f *Frame) frequencyInversion(gr, ch int) {
 	is := &f.mainData.Is[gr][ch]
 
-	for sb := 1; sb < 32; sb += 2 {
-		for i := 1; i < 18; i += 2 {
-			is[sb*18+i] = -is[sb*18+i]
+	for sb := 1; sb < subbands; sb += 2 {
+		for i := 1; i < samplesPerSubband; i += 2 {
+			is[sb*samplesPerSubband+i] = -is[sb*samplesPerSubband+i]
 		}
 	}
 }
@@ -479,52 +487,52 @@ func (f *Frame) frequencyInversion(gr, ch int) {
 //
 //nolint:varnamelen // short names are MPEG spec constants
 func (f *Frame) subbandSynthesis(gr, ch int, out []byte) {
-	var sVec [32]float32
+	var sVec [subbands]float32
 
 	nch := f.header.Channels()
 	vv := &f.vVec[ch]
 
-	for ss := range 18 {
+	for ss := range samplesPerSubband {
 		// Advance the circular buffer write position.
-		f.vOff[ch] = (f.vOff[ch] - 64) & 0x3FF
+		f.vOff[ch] = (f.vOff[ch] - synthSlotSize) & (vFIFOSize/2 - 1)
 		off := f.vOff[ch]
 
 		// Copy 32 time-domain samples from the frequency lines.
 		d := &f.mainData.Is[gr][ch]
-		for i := range 32 {
-			sVec[i] = d[i*18+ss]
+		for i := range subbands {
+			sVec[i] = d[i*samplesPerSubband+ss]
 		}
 
 		// Matrix multiply with the synthesis cosine window (SIMD-accelerated).
 		// Write each result to both halves of the doubled buffer so that
 		// reads spanning the logical wrap boundary are contiguous.
-		var vOut [64]float32
+		var vOut [synthSlotSize]float32
 		simd.MatVecMul64x32(&vOut, &synthNWin, &sVec)
-		copy(vv[off:off+64], vOut[:])
-		copy(vv[off+1024:off+1024+64], vOut[:])
+		copy(vv[off:off+synthSlotSize], vOut[:])
+		copy(vv[off+vFIFOSize/2:off+vFIFOSize/2+synthSlotSize], vOut[:])
 
 		// Fused D-window + sum: accumulate 32 PCM samples directly from
 		// the circular buffer, avoiding the intermediate 512-element U vector.
 		// Each sample sums 16 terms: 8 groups × 2 halves (first 32 + skip 64 + next 32).
-		for sampleIdx := range 32 {
+		for sampleIdx := range subbands {
 			var sum float32
 
 			for k := range 8 {
-				j := off + 128*k
-				sum += vv[j+sampleIdx] * synthDtbl[k*64+sampleIdx]
-				sum += vv[j+96+sampleIdx] * synthDtbl[k*64+32+sampleIdx]
+				j := off + 2*synthSlotSize*k
+				sum += vv[j+sampleIdx] * synthDtbl[k*synthSlotSize+sampleIdx]
+				sum += vv[j+synthSlotSize+subbands+sampleIdx] * synthDtbl[k*synthSlotSize+subbands+sampleIdx]
 			}
 
-			samp := int(sum * 32767)
-			if samp > 32767 {
-				samp = 32767
-			} else if samp < -32768 {
-				samp = -32768
+			samp := int(sum * math.MaxInt16)
+			if samp > math.MaxInt16 {
+				samp = math.MaxInt16
+			} else if samp < math.MinInt16 {
+				samp = math.MinInt16
 			}
 
 			s := int16(samp) //nolint:gosec // clamped to int16 range above
 
-			idx := 4 * (32*ss + sampleIdx)
+			idx := 4 * (subbands*ss + sampleIdx)
 			if nch == 1 {
 				out[idx] = byte(s)
 				out[idx+1] = byte(s >> 8)

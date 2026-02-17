@@ -168,7 +168,6 @@ func DecodePair(bitCache *BitCache, tableNum int) (x, y int) {
 //
 // The tableNum must be 32 or 33. The caller checks bit position bounds after the
 // decode loop.
-//
 func DecodeQuad(bitCache *BitCache, tableNum int) (v, w, x, y int) {
 	table := &quadTables[tableNum-32]
 

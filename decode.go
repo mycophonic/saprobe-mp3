@@ -1,4 +1,4 @@
-package saprobe_mp3
+package mp3
 
 import (
 	"bytes"
@@ -308,23 +308,6 @@ func (d *Decoder) applyEndTrim(decoded []byte) {
 
 	d.holdBuf = make([]byte, d.endTrimBytes)
 	copy(d.holdBuf, combined[release:])
-}
-
-// Decode reads an MP3 stream and decodes it to interleaved little-endian signed 16-bit PCM bytes.
-// The output is always stereo (2 channels) at the source sample rate.
-// If the file contains LAME gapless metadata, encoder delay and padding are trimmed automatically.
-func Decode(reader io.ReadSeeker) ([]byte, PCMFormat, error) {
-	dec, err := NewDecoder(reader)
-	if err != nil {
-		return nil, PCMFormat{}, err
-	}
-
-	pcm, err := io.ReadAll(dec)
-	if err != nil {
-		return nil, PCMFormat{}, fmt.Errorf("decoding mp3: %w", err)
-	}
-
-	return pcm, dec.Format(), nil
 }
 
 // skipTags skips past ID3v1 ("TAG") and ID3v2 ("ID3") headers at the start of the stream.

@@ -120,7 +120,7 @@ func runMP3Test(
 	// Generate source PCM (white noise, 1 second).
 	const bitDepth = 16
 
-	srcPCM := generateWhiteNoise(sampleRate, bitDepth, channels, 1)
+	srcPCM := agar.GenerateWhiteNoise(sampleRate, bitDepth, channels, 1)
 	srcPath := filepath.Join(tmpDir, "source.raw")
 
 	if err := os.WriteFile(srcPath, srcPCM, 0o600); err != nil {
@@ -176,7 +176,7 @@ func runMP3Test(
 			nameB := decoderNames[jdx]
 			label := fmt.Sprintf("decode(%s) vs decode(%s)", nameA, nameB)
 
-			compareLossySamples(t, decoded[nameA], decoded[nameB], bitDepth, outputChannels)
+			agar.CompareLossySamples(t, decoded[nameA], decoded[nameB], bitDepth, outputChannels)
 
 			if t.Failed() {
 				t.Logf("comparison failed: %s", label)
@@ -214,7 +214,7 @@ func runMP3Decode(
 		pcm := agar.FFmpegDecode(t, agar.FFmpegDecodeOptions{Src: encPath, BitDepth: bitDepth, Channels: decChannels})
 
 		if sourceChannels == 1 {
-			pcm = monoToStereo(pcm, bitDepth)
+			pcm = agar.MonoToStereo(pcm, bitDepth)
 		}
 
 		return pcm, nil
@@ -227,7 +227,7 @@ func runMP3Decode(
 
 		// lame outputs same channel count as source; for mono, duplicate to stereo.
 		if sourceChannels == 1 {
-			pcm = monoToStereo(pcm, bitDepth)
+			pcm = agar.MonoToStereo(pcm, bitDepth)
 		}
 
 		return pcm, nil

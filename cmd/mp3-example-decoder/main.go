@@ -32,10 +32,14 @@ import (
 	"os"
 
 	mp3 "github.com/mycophonic/saprobe-mp3"
+	"github.com/mycophonic/saprobe-mp3/version"
 )
 
+const formatWAV = "wav"
+
 func main() {
-	format := flag.String("format", "wav", "output format: wav or pcm")
+	showVersion := flag.Bool("version", false, "print version and exit")
+	outputFormat := flag.String("format", formatWAV, "output format: wav or pcm")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [-format wav|pcm] <input.mp3 | ->\n", os.Args[0])
@@ -44,43 +48,69 @@ func main() {
 
 	flag.Parse()
 
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.String())
+		os.Exit(0)
+	}
+
 	if flag.NArg() != 1 {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	if *format != "wav" && *format != "pcm" {
-		fmt.Fprintf(os.Stderr, "unknown format %q (use wav or pcm)\n", *format)
+	if *outputFormat != formatWAV && *outputFormat != "pcm" {
+		fmt.Fprintf(os.Stderr, "unknown format %q (use wav or pcm)\n", *outputFormat)
 		os.Exit(1)
 	}
 
-	reader, cleanup, err := openInput(flag.Arg(0))
+	os.Exit(run(*outputFormat, flag.Arg(0)))
+}
+
+func run(outputFormat, inputPath string) int {
+	reader, cleanup, err := openInput(inputPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	defer cleanup()
 
-	pcm, pcmFormat, err := mp3.Decode(reader)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "decode: %v\n", err)
-		os.Exit(1)
+	dec, decErr := mp3.NewDecoder(reader)
+	if decErr != nil {
+		fmt.Fprintf(os.Stderr, "decode: %v\n", decErr)
+
+		return 1
 	}
 
-	fmt.Fprintf(os.Stderr, "%d Hz, %d-bit, %d ch, %d bytes PCM\n",
-		pcmFormat.SampleRate, pcmFormat.BitDepth, pcmFormat.Channels, len(pcm))
+	pcmFormat := dec.Format()
 
-	if *format == "wav" {
-		err = writeWAV(os.Stdout, pcm, pcmFormat)
+	fmt.Fprintf(os.Stderr, "%d Hz, %d-bit, %d ch\n",
+		pcmFormat.SampleRate, pcmFormat.BitDepth, pcmFormat.Channels)
+
+	if outputFormat == formatWAV {
+		// WAV header requires total data size upfront.
+		pcm, err := io.ReadAll(dec)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "decode: %v\n", err)
+
+			return 1
+		}
+
+		if err := writeWAV(os.Stdout, pcm, pcmFormat); err != nil {
+			fmt.Fprintf(os.Stderr, "write: %v\n", err)
+
+			return 1
+		}
 	} else {
-		_, err = os.Stdout.Write(pcm)
+		if _, err := io.Copy(os.Stdout, dec); err != nil {
+			fmt.Fprintf(os.Stderr, "write: %v\n", err)
+
+			return 1
+		}
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "write: %v\n", err)
-		os.Exit(1)
-	}
+	return 0
 }
 
 // openInput returns a ReadSeeker for the given path, or buffers stdin when path is "-".
@@ -94,16 +124,16 @@ func openInput(path string) (io.ReadSeeker, func(), error) {
 		return bytes.NewReader(data), func() {}, nil
 	}
 
-	f, err := os.Open(path)
+	file, err := os.Open(path)
 	if err != nil {
-		return nil, func() {}, err
+		return nil, func() {}, fmt.Errorf("opening %s: %w", path, err)
 	}
 
-	return f, func() { f.Close() }, nil
+	return file, func() { _ = file.Close() }, nil
 }
 
-// writeWAV writes a standard PCM WAV to w.
-func writeWAV(w io.Writer, pcm []byte, format mp3.PCMFormat) error {
+// writeWAV writes a standard PCM WAV to writer.
+func writeWAV(writer io.Writer, pcm []byte, format mp3.PCMFormat) error {
 	bytesPerSample := format.BitDepth / 8
 	blockAlign := format.Channels * bytesPerSample
 	byteRate := format.SampleRate * blockAlign
@@ -127,11 +157,13 @@ func writeWAV(w io.Writer, pcm []byte, format mp3.PCMFormat) error {
 	copy(hdr[36:40], "data")
 	binary.LittleEndian.PutUint32(hdr[40:44], uint32(dataSize))
 
-	if _, err := w.Write(hdr[:]); err != nil {
-		return err
+	if _, err := writer.Write(hdr[:]); err != nil {
+		return fmt.Errorf("writing WAV header: %w", err)
 	}
 
-	_, err := w.Write(pcm)
+	if _, err := writer.Write(pcm); err != nil {
+		return fmt.Errorf("writing WAV data: %w", err)
+	}
 
-	return err
+	return nil
 }

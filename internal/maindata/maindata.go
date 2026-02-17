@@ -11,6 +11,19 @@ import (
 	"github.com/mycophonic/saprobe-mp3/internal/sideinfo"
 )
 
+const (
+	// SCFSI group boundaries (ISO 11172-3 §2.4.2.7). The long-block scale
+	// factor bands are partitioned into four groups:
+	//   Group 0: bands [0, 6)    Group 1: bands [6, 11)
+	//   Group 2: bands [11, 16)  Group 3: bands [16, 21)
+	scfsiGroup1 = 6
+	scfsiGroup2 = 11
+	scfsiGroup3 = 16
+
+	mpeg2LongSfbCount  = 22 // MPEG2 long-block scale factor count
+	mpeg2ShortSfbCount = 13 // MPEG2 short-block scale factor band count
+)
+
 // MainData contains the decoded MPEG Layer 3 main data including scale factors and frequency lines.
 type MainData struct {
 	ScalefacL [2][2][22]int      // 0-4 bits
@@ -84,11 +97,11 @@ var scalefacSizesMpeg2 = [3][6][4]int{ //nolint:gochecknoglobals // immutable lo
 
 var nSlen2 = initSlen() //nolint:gochecknoglobals // immutable lookup table (MPEG 2.0 slen for 'normal' mode)
 
-func initSlen() (nSlen2 [512]int) {
+func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spec
 	for i := range 4 {
 		for j := range 3 {
 			n := j + i*3
-			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15) //nolint:gosec // max n+500 = 2+3*3+500 = 511
+			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15) //nolint:gosec,revive // max n+500 = 2+3*3+500 = 511
 		}
 	}
 
@@ -96,8 +109,8 @@ func initSlen() (nSlen2 [512]int) {
 		for j := range 5 {
 			for k := range 4 {
 				for l := range 4 {
-					n := l + k*4 + j*16 + i*80
-					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12) //nolint:gosec // max n = 3+12+64+320 = 399
+					n := l + k*4 + j*16 + i*80                                 //nolint:revive // slen table stride
+					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12) //nolint:gosec,revive // max n = 3+12+64+320 = 399
 				}
 			}
 		}
@@ -107,7 +120,7 @@ func initSlen() (nSlen2 [512]int) {
 		for j := range 5 {
 			for k := range 4 {
 				n := k + j*4 + i*20
-				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12) //nolint:gosec // max n+400 = 3+16+80+400 = 499
+				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12) //nolint:gosec,revive // max n+400 = 3+16+80+400 = 499
 			}
 		}
 	}
@@ -227,10 +240,10 @@ func getScaleFactorsMpeg1(
 						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
 					}
 
-					for sfb := 3; sfb < 12; sfb++ {
+					for sfb := 3; sfb < consts.SfbShortBands; sfb++ {
 						// slen1 for band 3-5, slen2 for 6-11
 						nbits := slen2
-						if sfb < 6 {
+						if sfb < scfsiGroup1 {
 							nbits = slen1
 						}
 
@@ -239,10 +252,10 @@ func getScaleFactorsMpeg1(
 						}
 					}
 				} else {
-					for sfb := range 12 {
+					for sfb := range consts.SfbShortBands {
 						// slen1 for band 3-5, slen2 for 6-11
 						nbits := slen2
-						if sfb < 6 {
+						if sfb < scfsiGroup1 {
 							nbits = slen1
 						}
 
@@ -254,45 +267,45 @@ func getScaleFactorsMpeg1(
 			} else {
 				// Scale factor bands 0-5
 				if sideInfo.Scfsi[channel][0] == 0 || granule == 0 {
-					for sfb := range 6 {
+					for sfb := range scfsiGroup1 {
 						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
 					}
 				} else if sideInfo.Scfsi[channel][0] == 1 && granule == 1 {
 					// Copy scalefactors from granule 0 to granule 1 (scfsi reuse, ISO 11172-3 §2.4.2.7).
-					for sfb := range 6 {
+					for sfb := range scfsiGroup1 {
 						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
 					}
 				}
 				// Scale factor bands 6-10
 				if sideInfo.Scfsi[channel][1] == 0 || granule == 0 {
-					for sfb := 6; sfb < 11; sfb++ {
+					for sfb := scfsiGroup1; sfb < scfsiGroup2; sfb++ {
 						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
 					}
 				} else if sideInfo.Scfsi[channel][1] == 1 && granule == 1 {
 					// Copy scalefactors from granule 0 to granule 1
-					for sfb := 6; sfb < 11; sfb++ {
+					for sfb := scfsiGroup1; sfb < scfsiGroup2; sfb++ {
 						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
 					}
 				}
 				// Scale factor bands 11-15
 				if sideInfo.Scfsi[channel][2] == 0 || granule == 0 {
-					for sfb := 11; sfb < 16; sfb++ {
+					for sfb := scfsiGroup2; sfb < scfsiGroup3; sfb++ {
 						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen2)
 					}
 				} else if sideInfo.Scfsi[channel][2] == 1 && granule == 1 {
 					// Copy scalefactors from granule 0 to granule 1
-					for sfb := 11; sfb < 16; sfb++ {
+					for sfb := scfsiGroup2; sfb < scfsiGroup3; sfb++ {
 						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
 					}
 				}
 				// Scale factor bands 16-20
 				if sideInfo.Scfsi[channel][3] == 0 || granule == 0 {
-					for sfb := 16; sfb < 21; sfb++ {
+					for sfb := scfsiGroup3; sfb < consts.SfbLongBands; sfb++ {
 						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen2)
 					}
 				} else if sideInfo.Scfsi[channel][3] == 1 && granule == 1 {
 					// Copy scalefactors from granule 0 to granule 1
-					for sfb := 16; sfb < 21; sfb++ {
+					for sfb := scfsiGroup3; sfb < consts.SfbLongBands; sfb++ {
 						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
 					}
 				}
@@ -320,7 +333,7 @@ func getScaleFactorsMpeg2(
 		part2Start := bitStream.BitPos()
 		numbits := 0
 		slen := nSlen2[sideInfo.ScalefacCompress[0][channel]]
-		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1
+		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1 //nolint:revive // slen2 bitfield position
 
 		blockTypeIdx := 0
 		if sideInfo.BlockType[0][channel] == 2 {
@@ -330,7 +343,7 @@ func getScaleFactorsMpeg2(
 			}
 		}
 
-		d := (slen >> 12) & 0x7
+		d := (slen >> 12) & 0x7 //nolint:revive // slen2 bitfield positions
 
 		// Stack-local array replaces dynamic append.
 		var sf [45]int
@@ -338,7 +351,7 @@ func getScaleFactorsMpeg2(
 		sfIdx := 0
 
 		for idx := range 4 {
-			num := slen & 0x7
+			num := slen & 0x7 //nolint:revive // slen2 bitfield mask
 			slen >>= 3
 
 			if num > 0 {
@@ -361,13 +374,13 @@ func getScaleFactorsMpeg2(
 		sfIdx += trailingZeros
 		_ = numbits
 
-		if sfIdx == 22 { //nolint:mnd // 22 is the MPEG2 long-block scale factor count per spec
-			for idx := range 22 {
-				//nolint:gosec // idx bounded by range 22; sf is [45]int
+		if sfIdx == mpeg2LongSfbCount {
+			for idx := range mpeg2LongSfbCount {
+				//nolint:gosec // idx bounded by mpeg2LongSfbCount; sf is [45]int
 				dst.ScalefacL[0][channel][idx] = sf[idx]
 			}
 		} else {
-			for x := range 13 {
+			for x := range mpeg2ShortSfbCount {
 				for idx := range 3 {
 					//nolint:gosec // max (x*3)+idx = 12*3+2 = 38; sf is [45]int
 					dst.ScalefacS[0][channel][x][idx] = sf[(x*3)+idx]
