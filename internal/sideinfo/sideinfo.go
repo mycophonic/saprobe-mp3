@@ -43,7 +43,7 @@ type bitReader struct {
 func (r *bitReader) readBits(count int) int {
 	// Load up to 5 bytes into a uint64 accumulator.
 	byteIdx := r.pos >> 3
-	bitOff := uint(r.pos & 7) //nolint:gosec // pos is always non-negative
+	bitOff := uint(r.pos & 7)
 
 	var acc uint64
 
@@ -120,7 +120,6 @@ func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) e
 			dst.Part2And3Length[granule][channel] = reader.readBits(12)
 			dst.BigValues[granule][channel] = min(reader.readBits(9), 288)
 			dst.GlobalGain[granule][channel] = reader.readBits(8)
-			//nolint:gosec // bitsToRead is [4]int, index 3 always valid
 			dst.ScalefacCompress[granule][channel] = reader.readBits(bitsToRead[3])
 
 			dst.WinSwitchFlag[granule][channel] = reader.readBits(1)

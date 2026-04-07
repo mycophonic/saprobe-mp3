@@ -1,6 +1,6 @@
 package huffman
 
-import "sort"
+import "slices"
 
 // Multi-level flat Huffman lookup tables, built at init() from canonical tree data.
 //
@@ -188,7 +188,7 @@ func buildTableLevel(table *[]int16, codes []codeEntry, peekBits int) int {
 		prefixes = append(prefixes, pfx)
 	}
 
-	sort.Ints(prefixes)
+	slices.Sort(prefixes)
 
 	for _, prefix := range prefixes {
 		subCodes := overflow[prefix]

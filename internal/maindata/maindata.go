@@ -22,6 +22,16 @@ const (
 
 	mpeg2LongSfbCount  = 22 // MPEG2 long-block scale factor count
 	mpeg2ShortSfbCount = 13 // MPEG2 short-block scale factor band count
+
+	// MPEG2 slen2 bitfield constants (ISO 13818-3 §2.4.3.2).
+	slen2TableSize   = 512 // total slen2 lookup table entries
+	slen2NormalBase  = 500 // base offset for 'normal' mode entries
+	slen2Stride      = 80  // stride for 5×5×4×4 block in slen2 table
+	slen2AltBase     = 400 // base offset for alternate mode entries
+	slen2PreflagBit  = 15  // bit position of preflag in slen2 value
+	slen2BlockShift  = 12  // bit position of block type descriptor in slen2
+	slen2BandMask    = 0x7 // mask for extracting 3-bit band count from slen2
+	mpeg2ScalefacMax = 45  // max scale factors in MPEG2 temporary array
 )
 
 // MainData contains the decoded MPEG Layer 3 main data including scale factors and frequency lines.
@@ -97,11 +107,11 @@ var scalefacSizesMpeg2 = [3][6][4]int{ //nolint:gochecknoglobals // immutable lo
 
 var nSlen2 = initSlen() //nolint:gochecknoglobals // immutable lookup table (MPEG 2.0 slen for 'normal' mode)
 
-func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spec
+func initSlen() (nSlen2 [slen2TableSize]int) {
 	for i := range 4 {
 		for j := range 3 {
 			n := j + i*3
-			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15) //nolint:gosec,revive // max n+500 = 2+3*3+500 = 511
+			nSlen2[n+slen2NormalBase] = i | (j << 3) | (2 << slen2BlockShift) | (1 << slen2PreflagBit)
 		}
 	}
 
@@ -109,8 +119,8 @@ func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spe
 		for j := range 5 {
 			for k := range 4 {
 				for l := range 4 {
-					n := l + k*4 + j*16 + i*80                                 //nolint:revive // slen table stride
-					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12) //nolint:gosec,revive // max n = 3+12+64+320 = 399
+					n := l + k*4 + j*16 + i*slen2Stride
+					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << slen2BlockShift)
 				}
 			}
 		}
@@ -120,7 +130,7 @@ func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spe
 		for j := range 5 {
 			for k := range 4 {
 				n := k + j*4 + i*20
-				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12) //nolint:gosec,revive // max n+400 = 3+16+80+400 = 499
+				nSlen2[n+slen2AltBase] = i | (j << 3) | (k << 6) | (1 << slen2BlockShift)
 			}
 		}
 	}
@@ -232,84 +242,18 @@ func getScaleFactorsMpeg1(
 			part2Start := bitStream.BitPos()
 			// Number of bits in the bitstream for the bands
 			slen1 := scalefacSizesMpeg1[sideInfo.ScalefacCompress[granule][channel]][0]
-
 			slen2 := scalefacSizesMpeg1[sideInfo.ScalefacCompress[granule][channel]][1]
+
 			if sideInfo.WinSwitchFlag[granule][channel] == 1 && sideInfo.BlockType[granule][channel] == 2 {
 				if sideInfo.MixedBlockFlag[granule][channel] != 0 {
-					for sfb := range 8 {
-						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
-					}
-
-					for sfb := 3; sfb < consts.SfbShortBands; sfb++ {
-						// slen1 for band 3-5, slen2 for 6-11
-						nbits := slen2
-						if sfb < scfsiGroup1 {
-							nbits = slen1
-						}
-
-						for win := range 3 {
-							dst.ScalefacS[granule][channel][sfb][win] = bitStream.ReadBits(nbits)
-						}
-					}
+					readScalefacMpeg1Mixed(bitStream, dst, granule, channel, slen1, slen2)
 				} else {
-					for sfb := range consts.SfbShortBands {
-						// slen1 for band 3-5, slen2 for 6-11
-						nbits := slen2
-						if sfb < scfsiGroup1 {
-							nbits = slen1
-						}
-
-						for win := range 3 {
-							dst.ScalefacS[granule][channel][sfb][win] = bitStream.ReadBits(nbits)
-						}
-					}
+					readScalefacMpeg1Short(bitStream, dst, granule, channel, slen1, slen2)
 				}
 			} else {
-				// Scale factor bands 0-5
-				if sideInfo.Scfsi[channel][0] == 0 || granule == 0 {
-					for sfb := range scfsiGroup1 {
-						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
-					}
-				} else if sideInfo.Scfsi[channel][0] == 1 && granule == 1 {
-					// Copy scalefactors from granule 0 to granule 1 (scfsi reuse, ISO 11172-3 §2.4.2.7).
-					for sfb := range scfsiGroup1 {
-						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
-					}
-				}
-				// Scale factor bands 6-10
-				if sideInfo.Scfsi[channel][1] == 0 || granule == 0 {
-					for sfb := scfsiGroup1; sfb < scfsiGroup2; sfb++ {
-						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
-					}
-				} else if sideInfo.Scfsi[channel][1] == 1 && granule == 1 {
-					// Copy scalefactors from granule 0 to granule 1
-					for sfb := scfsiGroup1; sfb < scfsiGroup2; sfb++ {
-						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
-					}
-				}
-				// Scale factor bands 11-15
-				if sideInfo.Scfsi[channel][2] == 0 || granule == 0 {
-					for sfb := scfsiGroup2; sfb < scfsiGroup3; sfb++ {
-						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen2)
-					}
-				} else if sideInfo.Scfsi[channel][2] == 1 && granule == 1 {
-					// Copy scalefactors from granule 0 to granule 1
-					for sfb := scfsiGroup2; sfb < scfsiGroup3; sfb++ {
-						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
-					}
-				}
-				// Scale factor bands 16-20
-				if sideInfo.Scfsi[channel][3] == 0 || granule == 0 {
-					for sfb := scfsiGroup3; sfb < consts.SfbLongBands; sfb++ {
-						dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen2)
-					}
-				} else if sideInfo.Scfsi[channel][3] == 1 && granule == 1 {
-					// Copy scalefactors from granule 0 to granule 1
-					for sfb := scfsiGroup3; sfb < consts.SfbLongBands; sfb++ {
-						dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
-					}
-				}
+				readScalefacMpeg1Long(bitStream, sideInfo, dst, granule, channel, slen1, slen2)
 			}
+
 			// Read Huffman coded data. Skip stuffing bits.
 			if err := readHuffman(bitStream, header, sideInfo, dst, part2Start, granule, channel); err != nil {
 				return err
@@ -320,7 +264,88 @@ func getScaleFactorsMpeg1(
 	return nil
 }
 
-//nolint:varnamelen // short names mirror the MPEG2 spec
+// readScalefacMpeg1Mixed reads scale factors for MPEG1 mixed blocks
+// (long blocks for subbands 0-7, then short blocks for bands 3-11).
+func readScalefacMpeg1Mixed(
+	bitStream *bits.Reader,
+	dst *MainData,
+	granule, channel, slen1, slen2 int,
+) {
+	for sfb := range 8 {
+		dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(slen1)
+	}
+
+	for sfb := 3; sfb < consts.SfbShortBands; sfb++ {
+		// slen1 for band 3-5, slen2 for 6-11
+		nbits := slen2
+		if sfb < scfsiGroup1 {
+			nbits = slen1
+		}
+
+		for win := range 3 {
+			dst.ScalefacS[granule][channel][sfb][win] = bitStream.ReadBits(nbits)
+		}
+	}
+}
+
+// readScalefacMpeg1Short reads scale factors for MPEG1 pure short blocks.
+func readScalefacMpeg1Short(
+	bitStream *bits.Reader,
+	dst *MainData,
+	granule, channel, slen1, slen2 int,
+) {
+	for sfb := range consts.SfbShortBands {
+		// slen1 for band 3-5, slen2 for 6-11
+		nbits := slen2
+		if sfb < scfsiGroup1 {
+			nbits = slen1
+		}
+
+		for win := range 3 {
+			dst.ScalefacS[granule][channel][sfb][win] = bitStream.ReadBits(nbits)
+		}
+	}
+}
+
+// readScalefacMpeg1Long reads scale factors for MPEG1 long blocks,
+// applying SCFSI (Scale Factor Selection Information) reuse across granules.
+func readScalefacMpeg1Long(
+	bitStream *bits.Reader,
+	sideInfo *sideinfo.SideInfo,
+	dst *MainData,
+	granule, channel, slen1, slen2 int,
+) {
+	// SCFSI group boundaries and their slen assignments:
+	//   Group 0: bands [0, 6)   → slen1
+	//   Group 1: bands [6, 11)  → slen1
+	//   Group 2: bands [11, 16) → slen2
+	//   Group 3: bands [16, 21) → slen2
+	type scfsiGroup struct {
+		start, end int
+		slen       int
+	}
+
+	groups := [4]scfsiGroup{
+		{0, scfsiGroup1, slen1},
+		{scfsiGroup1, scfsiGroup2, slen1},
+		{scfsiGroup2, scfsiGroup3, slen2},
+		{scfsiGroup3, consts.SfbLongBands, slen2},
+	}
+
+	for idx, grp := range groups {
+		if sideInfo.Scfsi[channel][idx] == 0 || granule == 0 {
+			for sfb := grp.start; sfb < grp.end; sfb++ {
+				dst.ScalefacL[granule][channel][sfb] = bitStream.ReadBits(grp.slen)
+			}
+		} else if sideInfo.Scfsi[channel][idx] == 1 && granule == 1 {
+			// Copy scalefactors from granule 0 to granule 1 (scfsi reuse, ISO 11172-3 §2.4.2.7).
+			for sfb := grp.start; sfb < grp.end; sfb++ {
+				dst.ScalefacL[1][channel][sfb] = dst.ScalefacL[0][channel][sfb]
+			}
+		}
+	}
+}
+
 func getScaleFactorsMpeg2(
 	bitStream *bits.Reader,
 	header *frameheader.Header,
@@ -331,62 +356,16 @@ func getScaleFactorsMpeg2(
 
 	for channel := range nch {
 		part2Start := bitStream.BitPos()
-		numbits := 0
 		slen := nSlen2[sideInfo.ScalefacCompress[0][channel]]
-		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1 //nolint:revive // slen2 bitfield position
+		sideInfo.Preflag[0][channel] = (slen >> slen2PreflagBit) & 0x1
 
-		blockTypeIdx := 0
-		if sideInfo.BlockType[0][channel] == 2 {
-			blockTypeIdx++
-			if sideInfo.MixedBlockFlag[0][channel] != 0 {
-				blockTypeIdx++
-			}
-		}
-
-		d := (slen >> 12) & 0x7 //nolint:revive // slen2 bitfield positions
-
-		// Stack-local array replaces dynamic append.
-		var sf [45]int
-
-		sfIdx := 0
-
-		for idx := range 4 {
-			num := slen & 0x7 //nolint:revive // slen2 bitfield mask
-			slen >>= 3
-
-			if num > 0 {
-				for range scalefacSizesMpeg2[blockTypeIdx][d][idx] {
-					sf[sfIdx] = bitStream.ReadBits(num) //nolint:gosec // sfIdx bounded by table sums (max 41)
-					sfIdx++
-				}
-
-				numbits += scalefacSizesMpeg2[blockTypeIdx][d][idx] * num
-			} else {
-				for range scalefacSizesMpeg2[blockTypeIdx][d][idx] {
-					// sf[sfIdx] is already 0
-					sfIdx++
-				}
-			}
-		}
+		blockTypeIdx := mpeg2BlockTypeIdx(sideInfo, channel)
+		sf, sfIdx := readScalefacBandsMpeg2(bitStream, slen, blockTypeIdx)
 
 		// Trailing zeros for block type alignment.
-		trailingZeros := (blockTypeIdx << 1) + 1
-		sfIdx += trailingZeros
-		_ = numbits
+		sfIdx += (blockTypeIdx << 1) + 1
 
-		if sfIdx == mpeg2LongSfbCount {
-			for idx := range mpeg2LongSfbCount {
-				//nolint:gosec // idx bounded by mpeg2LongSfbCount; sf is [45]int
-				dst.ScalefacL[0][channel][idx] = sf[idx]
-			}
-		} else {
-			for x := range mpeg2ShortSfbCount {
-				for idx := range 3 {
-					//nolint:gosec // max (x*3)+idx = 12*3+2 = 38; sf is [45]int
-					dst.ScalefacS[0][channel][x][idx] = sf[(x*3)+idx]
-				}
-			}
-		}
+		assignScalefacMpeg2(dst, channel, sf, sfIdx)
 
 		// Read Huffman coded data. Skip stuffing bits.
 		if err := readHuffman(bitStream, header, sideInfo, dst, part2Start, 0, channel); err != nil {
@@ -395,4 +374,60 @@ func getScaleFactorsMpeg2(
 	}
 
 	return nil
+}
+
+// mpeg2BlockTypeIdx returns the block type index for MPEG2 scale factor decoding.
+func mpeg2BlockTypeIdx(sideInfo *sideinfo.SideInfo, channel int) int {
+	blockTypeIdx := 0
+	if sideInfo.BlockType[0][channel] == 2 {
+		blockTypeIdx++
+
+		if sideInfo.MixedBlockFlag[0][channel] != 0 {
+			blockTypeIdx++
+		}
+	}
+
+	return blockTypeIdx
+}
+
+// readScalefacBandsMpeg2 reads the MPEG2 scale factor bands from the bitstream
+// into a stack-local array. Returns the array and the number of scale factors read.
+func readScalefacBandsMpeg2(bitStream *bits.Reader, slen, blockTypeIdx int) ([mpeg2ScalefacMax]int, int) {
+	descriptor := (slen >> slen2BlockShift) & slen2BandMask
+
+	var scalefac [mpeg2ScalefacMax]int
+
+	sfIdx := 0
+
+	for idx := range 4 {
+		num := slen & slen2BandMask
+		slen >>= 3
+
+		if num > 0 {
+			for range scalefacSizesMpeg2[blockTypeIdx][descriptor][idx] {
+				scalefac[sfIdx] = bitStream.ReadBits(num)
+				sfIdx++
+			}
+		} else {
+			sfIdx += scalefacSizesMpeg2[blockTypeIdx][descriptor][idx]
+		}
+	}
+
+	return scalefac, sfIdx
+}
+
+// assignScalefacMpeg2 copies decoded scale factors from the temporary array
+// into the MainData structure for the given channel.
+func assignScalefacMpeg2(dst *MainData, channel int, scalefac [mpeg2ScalefacMax]int, sfIdx int) {
+	if sfIdx == mpeg2LongSfbCount {
+		for idx := range mpeg2LongSfbCount {
+			dst.ScalefacL[0][channel][idx] = scalefac[idx]
+		}
+	} else {
+		for x := range mpeg2ShortSfbCount {
+			for idx := range 3 {
+				dst.ScalefacS[0][channel][x][idx] = scalefac[(x*3)+idx]
+			}
+		}
+	}
 }

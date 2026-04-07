@@ -87,11 +87,11 @@ func readHuffman(
 
 	isPos := bigValuesEnd
 	for isPos <= consts.SamplesPerGr-4 && bitCache.BitPos() <= bitPosEnd {
-		v, w, x, y := huffman.DecodeQuad(&bitCache, tableNum)
-		is[isPos] = float32(v)
-		is[isPos+1] = float32(w)
-		is[isPos+2] = float32(x)
-		is[isPos+3] = float32(y)
+		q := huffman.DecodeQuad(&bitCache, tableNum)
+		is[isPos] = float32(q.V)
+		is[isPos+1] = float32(q.W)
+		is[isPos+2] = float32(q.X)
+		is[isPos+3] = float32(q.Y)
 		isPos += 4
 	}
 	// Check that we didn't read past the end of this section

@@ -456,7 +456,6 @@ func skipID3v2(reader io.ReadSeeker) int {
 	}
 
 	// Check for "ID3" signature.
-	//nolint:gosec // G602: bounds guaranteed by bytesRead < 10 guard above.
 	if header[0] != 'I' || header[1] != 'D' || header[2] != '3' {
 		// No ID3v2 tag — seek back to start.
 		if _, seekErr := reader.Seek(0, io.SeekStart); seekErr != nil {
@@ -467,7 +466,6 @@ func skipID3v2(reader io.ReadSeeker) int {
 	}
 
 	// Parse syncsafe size (4 bytes, 7 bits each).
-	//nolint:gosec // Bounds guaranteed by bytesRead < 10 guard above.
 	//revive:disable-next-line:add-constant
 	size := (int(header[6]) << 21) | (int(header[7]) << 14) | (int(header[8]) << 7) | int(
 		header[9],

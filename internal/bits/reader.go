@@ -40,7 +40,6 @@ func (r *Reader) ReadBit() int {
 		return 0
 	}
 
-	//nolint:gosec // pos is always non-negative; no overflow risk
 	bit := int(r.data[byteIdx]>>(7-uint(r.pos&7))) & 1
 	r.pos++
 
@@ -70,7 +69,6 @@ func (r *Reader) ReadBits(count int) int {
 	}
 
 	byteIdx := r.pos >> 3
-	//nolint:gosec // pos is always non-negative; no overflow risk
 	bitOff := uint(r.pos & 7)
 
 	// Check if enough data remains for the read.
@@ -136,7 +134,6 @@ func (r *Reader) PeekBits(count int) int {
 	}
 
 	byteIdx := r.pos >> 3
-	//nolint:gosec // pos is always non-negative; no overflow risk
 	bitOff := uint(r.pos & 7)
 
 	endByte := (r.pos + count - 1) >> 3

@@ -124,17 +124,17 @@ func TestDecodeQuad_Exhaustive(t *testing.T) {
 			// With 0x00 padding: sign bits are 0 → all positive.
 			stream := codeToBytes(c.code, c.length, 0x00)
 			bc := NewBitCache(bits.NewReader(stream))
-			v, w, x, y := DecodeQuad(&bc, tableNum)
+			q := DecodeQuad(&bc, tableNum)
 
-			if v != wantV || w != wantW || x != wantX || y != wantY {
+			if q.V != wantV || q.W != wantW || q.X != wantX || q.Y != wantY {
 				t.Errorf("table %d code %d/%d pad=0x00: want (v=%d,w=%d,x=%d,y=%d) got (v=%d,w=%d,x=%d,y=%d)",
-					tableNum, c.code, c.length, wantV, wantW, wantX, wantY, v, w, x, y)
+					tableNum, c.code, c.length, wantV, wantW, wantX, wantY, q.V, q.W, q.X, q.Y)
 			}
 
 			// With 0xFF padding: sign bits are 1 → non-zero values negated.
 			stream = codeToBytes(c.code, c.length, 0xFF)
 			bc = NewBitCache(bits.NewReader(stream))
-			v, w, x, y = DecodeQuad(&bc, tableNum)
+			q = DecodeQuad(&bc, tableNum)
 
 			negV := wantV
 			if negV != 0 {
@@ -156,9 +156,9 @@ func TestDecodeQuad_Exhaustive(t *testing.T) {
 				negY = -negY
 			}
 
-			if v != negV || w != negW || x != negX || y != negY {
+			if q.V != negV || q.W != negW || q.X != negX || q.Y != negY {
 				t.Errorf("table %d code %d/%d pad=0xFF: want (v=%d,w=%d,x=%d,y=%d) got (v=%d,w=%d,x=%d,y=%d)",
-					tableNum, c.code, c.length, negV, negW, negX, negY, v, w, x, y)
+					tableNum, c.code, c.length, negV, negW, negX, negY, q.V, q.W, q.X, q.Y)
 			}
 		}
 	}
@@ -243,7 +243,7 @@ func TestDecodeQuad_BitPositionExact(t *testing.T) {
 		for _, c := range codes {
 			stream := codeToBytes(c.code, c.length, 0x00)
 			bc := NewBitCache(bits.NewReader(stream))
-			v, w, x, y := DecodeQuad(&bc, tableNum)
+			q := DecodeQuad(&bc, tableNum)
 
 			// Expected: code_length + sign bits for each non-zero value.
 			packed := int(c.value) & 0xF
@@ -267,7 +267,7 @@ func TestDecodeQuad_BitPositionExact(t *testing.T) {
 
 			if bc.BitPos() != expected {
 				t.Errorf("table %d code %d/%d (v=%d,w=%d,x=%d,y=%d): expected pos %d, got %d",
-					tableNum, c.code, c.length, v, w, x, y, expected, bc.BitPos())
+					tableNum, c.code, c.length, q.V, q.W, q.X, q.Y, expected, bc.BitPos())
 			}
 		}
 	}

@@ -166,7 +166,6 @@ func requantSample(is, gain float32) float32 {
 //nolint:varnamelen // short names mirror the MPEG spec
 func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 	si := &f.sideInfo
-	md := &f.mainData
 
 	// sfMult2 is 4*sfMult where sfMult ∈ {0.5, 1.0}. Using the integer
 	// multiplier lets us index pow2quarter directly without floating-point.
@@ -180,95 +179,123 @@ func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 
 	if si.WinSwitchFlag[gr][ch] == 1 && si.BlockType[gr][ch] == 2 {
 		if si.MixedBlockFlag[gr][ch] != 0 {
-			// Mixed blocks: long blocks for subbands 0-1 (36 samples), then short.
-			sfb := 0
-			nextSfb := sfBandLong[sfb+1]
-			k := -sfMult2*(md.ScalefacL[gr][ch][0]+preflag*pretab[0]) + globalBase
-			gain := pow2quarter[k+pow2quarterBias]
-
-			for i := range consts.MixedBlockBoundary {
-				if i == nextSfb {
-					sfb++
-					nextSfb = sfBandLong[sfb+1]
-					k = -sfMult2*(md.ScalefacL[gr][ch][sfb]+preflag*pretab[sfb]) + globalBase
-					gain = pow2quarter[k+pow2quarterBias]
-				}
-
-				md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
-			}
-
-			// Short blocks for remaining samples.
-			sfb = 3
-			nextShort := sfBandShort[sfb+1] * 3
-			winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
-
-			for i := consts.MixedBlockBoundary; i < md.Count1[gr][ch]; {
-				if i == nextShort {
-					sfb++
-					nextShort = sfBandShort[sfb+1] * 3
-					winLen = sfBandShort[sfb+1] - sfBandShort[sfb]
-				}
-
-				for win := range 3 {
-					k := -sfMult2*md.ScalefacS[gr][ch][sfb][win] +
-						globalBase - 8*si.SubblockGain[gr][ch][win]
-					gain := pow2quarter[k+pow2quarterBias]
-
-					for range winLen {
-						md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
-						i++
-					}
-				}
-			}
+			f.requantizeMixed(gr, ch, sfBandLong, sfBandShort, sfMult2, globalBase, preflag)
 		} else {
-			// Pure short blocks.
-			sfb := 0
-			nextSfb := sfBandShort[sfb+1] * 3
-			winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
-
-			for i := 0; i < md.Count1[gr][ch]; {
-				if i == nextSfb {
-					sfb++
-					nextSfb = sfBandShort[sfb+1] * 3
-					winLen = sfBandShort[sfb+1] - sfBandShort[sfb]
-				}
-
-				for win := range 3 {
-					k := -sfMult2*md.ScalefacS[gr][ch][sfb][win] +
-						globalBase - 8*si.SubblockGain[gr][ch][win]
-					gain := pow2quarter[k+pow2quarterBias]
-
-					for range winLen {
-						md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
-						i++
-					}
-				}
-			}
+			f.requantizeShort(gr, ch, sfBandShort, sfMult2, globalBase)
 		}
 	} else {
-		// Long blocks only.
-		sfb := 0
-		nextSfb := sfBandLong[sfb+1]
-		k := -sfMult2*(md.ScalefacL[gr][ch][0]+preflag*pretab[0]) + globalBase
-		gain := pow2quarter[k+pow2quarterBias]
+		f.requantizeLong(gr, ch, sfBandLong, sfMult2, globalBase, preflag)
+	}
+}
 
-		for i := range md.Count1[gr][ch] {
-			if i == nextSfb {
-				sfb++
-				nextSfb = sfBandLong[sfb+1]
-				k = -sfMult2*(md.ScalefacL[gr][ch][sfb]+preflag*pretab[sfb]) + globalBase
-				gain = pow2quarter[k+pow2quarterBias]
-			}
+// requantizeMixed dequantizes mixed blocks: long blocks for subbands 0-1 (36 samples),
+// then short blocks for the remaining samples.
+//
+//nolint:varnamelen // short names mirror the MPEG spec
+func (f *Frame) requantizeMixed(gr, ch int, sfBandLong, sfBandShort []int, sfMult2, globalBase, preflag int) {
+	si := &f.sideInfo
+	md := &f.mainData
 
-			md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
+	// Long block portion.
+	sfb := 0
+	nextSfb := sfBandLong[sfb+1]
+	k := -sfMult2*(md.ScalefacL[gr][ch][0]+preflag*pretab[0]) + globalBase
+	gain := pow2quarter[k+pow2quarterBias]
+
+	for i := range consts.MixedBlockBoundary {
+		if i == nextSfb {
+			sfb++
+			nextSfb = sfBandLong[sfb+1]
+			k = -sfMult2*(md.ScalefacL[gr][ch][sfb]+preflag*pretab[sfb]) + globalBase
+			gain = pow2quarter[k+pow2quarterBias]
 		}
+
+		md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
+	}
+
+	// Short blocks for remaining samples.
+	sfb = 3
+	nextShort := sfBandShort[sfb+1] * 3
+	winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
+
+	for i := consts.MixedBlockBoundary; i < md.Count1[gr][ch]; {
+		if i == nextShort {
+			sfb++
+			nextShort = sfBandShort[sfb+1] * 3
+			winLen = sfBandShort[sfb+1] - sfBandShort[sfb]
+		}
+
+		for win := range 3 {
+			k := -sfMult2*md.ScalefacS[gr][ch][sfb][win] +
+				globalBase - 8*si.SubblockGain[gr][ch][win]
+			gain := pow2quarter[k+pow2quarterBias]
+
+			for range winLen {
+				md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
+				i++
+			}
+		}
+	}
+}
+
+// requantizeShort dequantizes pure short blocks.
+//
+//nolint:varnamelen // short names mirror the MPEG spec
+func (f *Frame) requantizeShort(gr, ch int, sfBandShort []int, sfMult2, globalBase int) {
+	si := &f.sideInfo
+	md := &f.mainData
+
+	sfb := 0
+	nextSfb := sfBandShort[sfb+1] * 3
+	winLen := sfBandShort[sfb+1] - sfBandShort[sfb]
+
+	for i := 0; i < md.Count1[gr][ch]; {
+		if i == nextSfb {
+			sfb++
+			nextSfb = sfBandShort[sfb+1] * 3
+			winLen = sfBandShort[sfb+1] - sfBandShort[sfb]
+		}
+
+		for win := range 3 {
+			k := -sfMult2*md.ScalefacS[gr][ch][sfb][win] +
+				globalBase - 8*si.SubblockGain[gr][ch][win]
+			gain := pow2quarter[k+pow2quarterBias]
+
+			for range winLen {
+				md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
+				i++
+			}
+		}
+	}
+}
+
+// requantizeLong dequantizes long blocks only.
+//
+//nolint:varnamelen // short names mirror the MPEG spec
+func (f *Frame) requantizeLong(gr, ch int, sfBandLong []int, sfMult2, globalBase, preflag int) {
+	md := &f.mainData
+
+	sfb := 0
+	nextSfb := sfBandLong[sfb+1]
+	k := -sfMult2*(md.ScalefacL[gr][ch][0]+preflag*pretab[0]) + globalBase
+	gain := pow2quarter[k+pow2quarterBias]
+
+	for i := range md.Count1[gr][ch] {
+		if i == nextSfb {
+			sfb++
+			nextSfb = sfBandLong[sfb+1]
+			k = -sfMult2*(md.ScalefacL[gr][ch][sfb]+preflag*pretab[sfb]) + globalBase
+			gain = pow2quarter[k+pow2quarterBias]
+		}
+
+		md.Is[gr][ch][i] = requantSample(md.Is[gr][ch][i], gain)
 	}
 }
 
 // reorder rearranges short-block frequency lines from sub-band order to
 // frequency order. Long blocks pass through unchanged.
 //
-//nolint:varnamelen,gosec // short names and bounded slice access are MPEG spec constants
+//nolint:varnamelen // short names and bounded slice access are MPEG spec constants
 func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 	si := &f.sideInfo
 	md := &f.mainData
@@ -322,31 +349,44 @@ func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 //
 //nolint:varnamelen // short names mirror the MPEG spec
 func (f *Frame) stereo(gr int, sfBandLong, sfBandShort []int) {
+	if f.header.UseMSStereo() {
+		f.msStereo(gr)
+	}
+
+	if f.header.UseIntensityStereo() {
+		f.intensityStereo(gr, sfBandLong, sfBandShort)
+	}
+}
+
+// msStereo applies mid/side stereo decoding to the frequency lines.
+//
+//nolint:varnamelen // short names mirror the MPEG spec
+func (f *Frame) msStereo(gr int) {
 	md := &f.mainData
 
-	if f.header.UseMSStereo() {
-		// Determine how many frequency lines to transform.
-		i := 1
-		if md.Count1[gr][0] > md.Count1[gr][1] {
-			i = 0
-		}
-
-		maxPos := md.Count1[gr][i]
-
-		const invSqrt2 = math.Sqrt2 / 2
-
-		for i := range maxPos {
-			left := (md.Is[gr][0][i] + md.Is[gr][1][i]) * invSqrt2
-			right := (md.Is[gr][0][i] - md.Is[gr][1][i]) * invSqrt2
-			md.Is[gr][0][i] = left
-			md.Is[gr][1][i] = right
-		}
+	// Determine how many frequency lines to transform.
+	i := 1
+	if md.Count1[gr][0] > md.Count1[gr][1] {
+		i = 0
 	}
 
-	if !f.header.UseIntensityStereo() {
-		return
-	}
+	maxPos := md.Count1[gr][i]
 
+	const invSqrt2 = math.Sqrt2 / 2
+
+	for i := range maxPos {
+		left := (md.Is[gr][0][i] + md.Is[gr][1][i]) * invSqrt2
+		right := (md.Is[gr][0][i] - md.Is[gr][1][i]) * invSqrt2
+		md.Is[gr][0][i] = left
+		md.Is[gr][1][i] = right
+	}
+}
+
+// intensityStereo applies intensity stereo processing based on block type.
+//
+//nolint:varnamelen // short names mirror the MPEG spec
+func (f *Frame) intensityStereo(gr int, sfBandLong, sfBandShort []int) {
+	md := &f.mainData
 	si := &f.sideInfo
 
 	if si.WinSwitchFlag[gr][0] == 1 && si.BlockType[gr][0] == 2 {
@@ -530,23 +570,23 @@ func (f *Frame) subbandSynthesis(gr, ch int, out []byte) {
 				samp = math.MinInt16
 			}
 
-			s := int16(samp) //nolint:gosec // clamped to int16 range above
+			s := int16(samp)
 
 			idx := 4 * (subbands*ss + sampleIdx)
 			if nch == 1 {
-				out[idx] = byte(s)
+				out[idx] = byte(s) //nolint:gosec // intentional int16→byte truncation for LE PCM low byte
 				out[idx+1] = byte(s >> 8)
-				out[idx+2] = byte(s)
+				out[idx+2] = byte(s) //nolint:gosec // intentional int16→byte truncation for LE PCM low byte
 				out[idx+3] = byte(s >> 8)
 
 				continue
 			}
 
 			if ch == 0 {
-				out[idx] = byte(s)
+				out[idx] = byte(s) //nolint:gosec // intentional int16→byte truncation for LE PCM low byte
 				out[idx+1] = byte(s >> 8)
 			} else {
-				out[idx+2] = byte(s)
+				out[idx+2] = byte(s) //nolint:gosec // intentional int16→byte truncation for LE PCM low byte
 				out[idx+3] = byte(s >> 8)
 			}
 		}

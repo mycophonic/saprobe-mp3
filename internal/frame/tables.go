@@ -15,6 +15,8 @@ var powtab34 [8207]float32 //nolint:gochecknoglobals // immutable lookup table
 // Range: k ∈ [-326, +45] → table size = 372.
 const pow2quarterBias = 326
 
+const pow2Base = 2.0 // base for power-of-two exponentiation in requantization
+
 var pow2quarter [372]float32 //nolint:gochecknoglobals // immutable lookup table
 
 // pretab contains the MPEG1 pre-emphasis table (ISO 11172-3, Table B.6).
@@ -181,17 +183,17 @@ var (
 	isRatioR [7]float32 //nolint:gochecknoglobals // immutable lookup table
 )
 
-//nolint:gochecknoinits,revive // precomputes lookup tables; magic numbers are MPEG spec constants
+//nolint:gochecknoinits // precomputes lookup tables; magic numbers are MPEG spec constants
 func init() {
 	for i := range powtab34 {
 		powtab34[i] = float32(math.Pow(float64(i), 4.0/3.0))
 	}
 
 	for k := range pow2quarter {
-		pow2quarter[k] = float32(math.Pow(2.0, float64(k-pow2quarterBias)/4.0))
+		pow2quarter[k] = float32(math.Pow(pow2Base, float64(k-pow2quarterBias)/4.0))
 	}
 
-	for i := range 64 {
+	for i := range synthSlotSize {
 		for j := range 32 {
 			synthNWin[i][j] = float32(math.Cos(float64((16+i)*(2*j+1)) * (math.Pi / 64.0)))
 		}

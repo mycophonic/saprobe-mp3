@@ -47,7 +47,6 @@ func NewBitCache(reader *bits.Reader) BitCache {
 		cache |= uint32(ptr[i]) << uint(24-i*8)
 	}
 
-	//nolint:gosec // bitOff is 0..7, always non-negative
 	cache <<= uint(bitOff)
 
 	return BitCache{
@@ -81,7 +80,6 @@ func (bc *BitCache) flush(n int) {
 func (bc *BitCache) check() {
 	for bc.sh >= 0 {
 		if len(bc.ptr) > 0 {
-			//nolint:gosec // sh is 0..24 when this branch executes
 			bc.cache |= uint32(bc.ptr[0]) << uint(bc.sh)
 			bc.ptr = bc.ptr[1:]
 		}
@@ -161,6 +159,12 @@ func DecodePair(bitCache *BitCache, tableNum int) (x, y int) {
 	return x, y
 }
 
+// QuadValues holds the four signed spectral coefficients (each -1, 0, or +1)
+// decoded from the count1 region.
+type QuadValues struct {
+	V, W, X, Y int
+}
+
 // DecodeQuad decodes a Huffman-coded quadruple from tables 32-33.
 //
 // Returns four signed values (each -1, 0, or +1) representing spectral coefficients
@@ -168,7 +172,7 @@ func DecodePair(bitCache *BitCache, tableNum int) (x, y int) {
 //
 // The tableNum must be 32 or 33. The caller checks bit position bounds after the
 // decode loop.
-func DecodeQuad(bitCache *BitCache, tableNum int) (v, w, x, y int) {
+func DecodeQuad(bitCache *BitCache, tableNum int) QuadValues {
 	table := &quadTables[tableNum-32]
 
 	// Multi-level flat table lookup.
@@ -192,27 +196,30 @@ func DecodeQuad(bitCache *BitCache, tableNum int) (v, w, x, y int) {
 
 	// Extract v, w, x, y from the packed 4-bit value.
 	packed := int(entry) & nibbleMask
-	v = (packed >> 3) & 1
-	w = (packed >> 2) & 1
-	x = (packed >> 1) & 1
-	y = packed & 1
+
+	var quad QuadValues
+
+	quad.V = (packed >> 3) & 1
+	quad.W = (packed >> 2) & 1
+	quad.X = (packed >> 1) & 1
+	quad.Y = packed & 1
 
 	// Sign bits: for each non-zero value, read one bit (1 = negative).
-	if v != 0 && bitCache.readBit() == 1 {
-		v = -v
+	if quad.V != 0 && bitCache.readBit() == 1 {
+		quad.V = -quad.V
 	}
 
-	if w != 0 && bitCache.readBit() == 1 {
-		w = -w
+	if quad.W != 0 && bitCache.readBit() == 1 {
+		quad.W = -quad.W
 	}
 
-	if x != 0 && bitCache.readBit() == 1 {
-		x = -x
+	if quad.X != 0 && bitCache.readBit() == 1 {
+		quad.X = -quad.X
 	}
 
-	if y != 0 && bitCache.readBit() == 1 {
-		y = -y
+	if quad.Y != 0 && bitCache.readBit() == 1 {
+		quad.Y = -quad.Y
 	}
 
-	return v, w, x, y
+	return quad
 }
