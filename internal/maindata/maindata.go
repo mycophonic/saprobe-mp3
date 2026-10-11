@@ -97,11 +97,11 @@ var scalefacSizesMpeg2 = [3][6][4]int{ //nolint:gochecknoglobals // immutable lo
 
 var nSlen2 = initSlen() //nolint:gochecknoglobals // immutable lookup table (MPEG 2.0 slen for 'normal' mode)
 
-func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spec
+func initSlen() (nSlen2 [512]int) {
 	for i := range 4 {
 		for j := range 3 {
 			n := j + i*3
-			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15) //nolint:gosec,revive // max n+500 = 2+3*3+500 = 511
+			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15)
 		}
 	}
 
@@ -109,8 +109,8 @@ func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spe
 		for j := range 5 {
 			for k := range 4 {
 				for l := range 4 {
-					n := l + k*4 + j*16 + i*80                                 //nolint:revive // slen table stride
-					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12) //nolint:gosec,revive // max n = 3+12+64+320 = 399
+					n := l + k*4 + j*16 + i*80
+					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12)
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func initSlen() (nSlen2 [512]int) { //nolint:revive // table size from MPEG2 spe
 		for j := range 5 {
 			for k := range 4 {
 				n := k + j*4 + i*20
-				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12) //nolint:gosec,revive // max n+400 = 3+16+80+400 = 499
+				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12)
 			}
 		}
 	}
@@ -333,7 +333,7 @@ func getScaleFactorsMpeg2(
 		part2Start := bitStream.BitPos()
 		numbits := 0
 		slen := nSlen2[sideInfo.ScalefacCompress[0][channel]]
-		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1 //nolint:revive // slen2 bitfield position
+		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1
 
 		blockTypeIdx := 0
 		if sideInfo.BlockType[0][channel] == 2 {
@@ -343,7 +343,7 @@ func getScaleFactorsMpeg2(
 			}
 		}
 
-		d := (slen >> 12) & 0x7 //nolint:revive // slen2 bitfield positions
+		d := (slen >> 12) & 0x7
 
 		// Stack-local array replaces dynamic append.
 		var sf [45]int
@@ -351,12 +351,12 @@ func getScaleFactorsMpeg2(
 		sfIdx := 0
 
 		for idx := range 4 {
-			num := slen & 0x7 //nolint:revive // slen2 bitfield mask
+			num := slen & 0x7
 			slen >>= 3
 
 			if num > 0 {
 				for range scalefacSizesMpeg2[blockTypeIdx][d][idx] {
-					sf[sfIdx] = bitStream.ReadBits(num) //nolint:gosec // sfIdx bounded by table sums (max 41)
+					sf[sfIdx] = bitStream.ReadBits(num)
 					sfIdx++
 				}
 
@@ -376,13 +376,11 @@ func getScaleFactorsMpeg2(
 
 		if sfIdx == mpeg2LongSfbCount {
 			for idx := range mpeg2LongSfbCount {
-				//nolint:gosec // idx bounded by mpeg2LongSfbCount; sf is [45]int
 				dst.ScalefacL[0][channel][idx] = sf[idx]
 			}
 		} else {
 			for x := range mpeg2ShortSfbCount {
 				for idx := range 3 {
-					//nolint:gosec // max (x*3)+idx = 12*3+2 = 38; sf is [45]int
 					dst.ScalefacS[0][channel][x][idx] = sf[(x*3)+idx]
 				}
 			}

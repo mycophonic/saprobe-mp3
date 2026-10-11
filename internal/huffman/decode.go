@@ -43,11 +43,9 @@ func NewBitCache(reader *bits.Reader) BitCache {
 
 	avail := min(4, len(ptr))
 	for i := range avail {
-		//nolint:gosec // i is 0..3, shift is always non-negative
 		cache |= uint32(ptr[i]) << uint(24-i*8)
 	}
 
-	//nolint:gosec // bitOff is 0..7, always non-negative
 	cache <<= uint(bitOff)
 
 	return BitCache{
@@ -65,13 +63,11 @@ func (bc *BitCache) BitPos() int {
 
 // peek returns the top n bits of the cache without consuming them.
 func (bc *BitCache) peek(n int) int {
-	//nolint:gosec // n is 1..19 (max Huffman code length), always non-negative
 	return int(bc.cache >> uint(32-n))
 }
 
 // flush consumes n bits from the cache.
 func (bc *BitCache) flush(n int) {
-	//nolint:gosec // n is always a small positive count (code length or peek width)
 	bc.cache <<= uint(n)
 	bc.sh += n
 	bc.pos += n
@@ -81,7 +77,6 @@ func (bc *BitCache) flush(n int) {
 func (bc *BitCache) check() {
 	for bc.sh >= 0 {
 		if len(bc.ptr) > 0 {
-			//nolint:gosec // sh is 0..24 when this branch executes
 			bc.cache |= uint32(bc.ptr[0]) << uint(bc.sh)
 			bc.ptr = bc.ptr[1:]
 		}

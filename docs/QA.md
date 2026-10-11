@@ -6,7 +6,7 @@ Cross-decoder comparison tests across all supported sample rate, channel count, 
 
 ```bash
 # Full suite (all tools)
-make test
+just test
 
 # Conformance only
 go test ./tests/ -run TestMP3Decode -count=1 -v

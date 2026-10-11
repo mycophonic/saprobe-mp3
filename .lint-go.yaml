@@ -1,0 +1,77 @@
+# saprobe-mp3's carve-outs from the Go lint baseline (.limen/lint-go.yaml),
+# rendered with it by `just do lint go` (limen's book/linting-go.md,
+# "one baseline, per-project carve-outs").
+golangci:
+  linters:
+    settings:
+      depguard:
+        rules:
+          main:
+            allow:
+              # The decoder's dependencies, each one a reviewed choice.
+              - github.com/mycophonic/primordium # simd: the vectorised synthesis paths
+              - github.com/mycophonic/agar # tests: reference encoders and defective audio
+    exclusions:
+      rules:
+        # Tests are black-box consumers: the rules about API hygiene and
+        # production robustness do not apply to them, the rules about
+        # correctness do (errcheck stays on).
+        - path: _test\.go
+          linters:
+            - dupl # test cases are meant to look alike
+            - dupword # test data
+            - err113 # dynamic errors are fine in fixtures
+            - dogsled # multiple-return helpers are exercised for one value at a time
+            - noctx # no cancellation to propagate
+            - perfsprint # readability over allocations
+            - mnd # fixture values
+
+        # --- ONBOARDING BACKLOG (book/mandatory-files.md, "Onboarding an
+        # existing repository"). Findings the baseline raised on enrolment and
+        # nobody has read yet: not decisions, exemptions to be emptied, one
+        # linter or one package per alignment pull request, each finding then
+        # fixed, silenced inline with its reason, or raised as a rule. The last
+        # alignment pull request deletes this block.
+        - path: ^decode\.go$
+          linters: [mnd, modernize]
+        - path: ^cmd/mp3-example-decoder/main\.go$
+          linters: [mnd, reassign]
+        - path: ^internal/bits/reader\.go$
+          linters: [mnd]
+        - path: ^internal/bits/reader_test\.go$
+          linters: [gocritic]
+          text: commentedOutCode
+        - path: ^internal/consts/consts\.go$
+          linters: [errname, revive]
+        - path: ^internal/frame/frame\.go$
+          linters: [gocognit, gosec, govet]
+        - path: ^internal/frame/tables\.go$
+          linters: [mnd]
+        - path: ^internal/frameheader/frameheader\.go$
+          linters: [gocognit]
+        - path: ^internal/frameheader/frameheader_test\.go$
+          linters: [modernize]
+        - path: ^internal/huffman/decode\.go$
+          linters: [revive]
+          text: function-result-limit
+        - path: ^internal/huffman/table\.go$
+          linters: [gocognit]
+        - path: ^internal/imdct/imdct\.go$
+          linters: [mnd]
+        - path: ^internal/maindata/huffman\.go$
+          linters: [gocognit]
+        - path: ^internal/maindata/maindata\.go$
+          linters: [gocognit, mnd]
+        - path: ^internal/sideinfo/sideinfo\.go$
+          linters: [gocognit, mnd]
+        - path: ^tests/benchmark_test\.go$
+          linters: [gocritic]
+          text: appendCombine
+        - path: ^tests/helpers_test\.go$
+          linters: [errcheck]
+          # --- end of the onboarding backlog.
+licenses:
+  ignore:
+    # go-licenses cannot resolve the LICENSE of the gotest.tools/v3
+    # submodule (google/go-licenses#186).
+    - gotest.tools/v3

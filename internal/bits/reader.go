@@ -40,7 +40,6 @@ func (r *Reader) ReadBit() int {
 		return 0
 	}
 
-	//nolint:gosec // pos is always non-negative; no overflow risk
 	bit := int(r.data[byteIdx]>>(7-uint(r.pos&7))) & 1
 	r.pos++
 
@@ -70,7 +69,7 @@ func (r *Reader) ReadBits(count int) int {
 	}
 
 	byteIdx := r.pos >> 3
-	//nolint:gosec // pos is always non-negative; no overflow risk
+
 	bitOff := uint(r.pos & 7)
 
 	// Check if enough data remains for the read.
@@ -89,15 +88,14 @@ func (r *Reader) ReadBits(count int) int {
 	remaining := min(len(r.data)-byteIdx, 5)
 	for idx := range remaining {
 		shift := (7 - idx) * 8 // 56, 48, 40, 32, 24
-		//nolint:gosec // idx is 0..4, shift is always non-negative
+
 		acc |= uint64(r.data[byteIdx+idx]) << uint(shift)
 	}
 
 	// Shift out the already-consumed bits within the first byte,
 	// then shift right to isolate the requested count bits.
 	acc <<= bitOff
-	//nolint:gosec // count is 1..32; no overflow risk
-	result := int(acc >> uint(64-count))
+	result := int(acc >> uint(64-count)) // #nosec G115 -- count is 1..32; no overflow risk
 
 	r.pos += count
 
@@ -136,7 +134,7 @@ func (r *Reader) PeekBits(count int) int {
 	}
 
 	byteIdx := r.pos >> 3
-	//nolint:gosec // pos is always non-negative; no overflow risk
+
 	bitOff := uint(r.pos & 7)
 
 	endByte := (r.pos + count - 1) >> 3
@@ -149,14 +147,13 @@ func (r *Reader) PeekBits(count int) int {
 	remaining := min(len(r.data)-byteIdx, 5)
 	for idx := range remaining {
 		shift := (7 - idx) * 8
-		//nolint:gosec // idx is 0..4, shift is always non-negative
+
 		acc |= uint64(r.data[byteIdx+idx]) << uint(shift)
 	}
 
 	acc <<= bitOff
 
-	//nolint:gosec // count is 1..32; no overflow risk
-	return int(acc >> uint(64-count))
+	return int(acc >> uint(64-count)) // #nosec G115 -- count is 1..32; no overflow risk
 }
 
 // Skip advances the bit position by count bits without reading data.

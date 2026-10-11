@@ -22,7 +22,7 @@ type mp3BenchConfig struct {
 	FFmpegArgs []string
 }
 
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals // the benchmark matrix, read-only test data
 var mp3BenchConfigs = []mp3BenchConfig{
 	{
 		agar.BenchFormat{Name: "44.1kHz stereo CBR320", SampleRate: 44100, Channels: 2},

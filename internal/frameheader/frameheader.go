@@ -283,15 +283,15 @@ func Parse(raw uint32) (Header, error) {
 		version:       version,
 		layer:         layer,
 		protected:     (raw>>shiftProtection)&maskProtection == 0,
-		bitrateIndex:  uint8(bitrateIndex), //nolint:gosec // validated <= 14 above
+		bitrateIndex:  uint8(bitrateIndex),
 		sfreqIndex:    sfreqIndex,
 		padded:        (raw>>shiftPadding)&maskPadding != 0,
 		privateBit:    (raw>>shiftPrivate)&maskPrivate != 0,
 		mode:          mode,
-		modeExtension: uint8((raw >> shiftModeExt) & maskModeExt), //nolint:gosec // 2-bit field, max 3
+		modeExtension: uint8((raw >> shiftModeExt) & maskModeExt),
 		copyright:     (raw>>shiftCopyright)&maskCopyright != 0,
 		original:      (raw>>shiftOriginal)&maskOriginal != 0,
-		emphasis:      uint8(emphasis), //nolint:gosec // validated != 2, max 3
+		emphasis:      uint8(emphasis),
 		lsf:           lsf,
 		channels:      channels,
 		granules:      granules,

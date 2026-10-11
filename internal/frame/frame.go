@@ -268,7 +268,7 @@ func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
 // reorder rearranges short-block frequency lines from sub-band order to
 // frequency order. Long blocks pass through unchanged.
 //
-//nolint:varnamelen,gosec // short names and bounded slice access are MPEG spec constants
+//nolint:varnamelen // the short names are the MPEG specification's
 func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 	si := &f.sideInfo
 	md := &f.mainData
@@ -530,7 +530,7 @@ func (f *Frame) subbandSynthesis(gr, ch int, out []byte) {
 				samp = math.MinInt16
 			}
 
-			s := int16(samp) //nolint:gosec // clamped to int16 range above
+			s := int16(samp)
 
 			idx := 4 * (subbands*ss + sampleIdx)
 			if nch == 1 {
