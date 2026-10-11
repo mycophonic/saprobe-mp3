@@ -181,7 +181,7 @@ var (
 	isRatioR [7]float32 //nolint:gochecknoglobals // immutable lookup table
 )
 
-//nolint:gochecknoinits,revive // precomputes lookup tables; magic numbers are MPEG spec constants
+//nolint:gochecknoinits // precomputes the lookup tables once, at load
 func init() {
 	for i := range powtab34 {
 		powtab34[i] = float32(math.Pow(float64(i), 4.0/3.0))

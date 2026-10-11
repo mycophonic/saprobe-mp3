@@ -183,7 +183,7 @@ func NewDecoder(rs io.ReadSeeker) (*Decoder, error) { //nolint:varnamelen // rs 
 func (d *Decoder) Format() PCMFormat { return d.format }
 
 // Read reads decoded PCM bytes from the MP3 stream.
-func (d *Decoder) Read(p []byte) (int, error) { //nolint:varnamelen // p is idiomatic for io.Reader.Read
+func (d *Decoder) Read(p []byte) (int, error) {
 	total := 0
 
 	for len(p) > 0 {
@@ -330,7 +330,6 @@ func skipTags(reader io.ReadSeeker) error {
 	switch string(buf[:]) {
 	case "TAG":
 		// ID3v1 tag at start (non-standard). Skip past the 128-byte tag.
-		//revive:disable-next-line:add-constant
 		if _, err := reader.Seek(startPos+128, io.SeekStart); err != nil {
 			return fmt.Errorf("skipping ID3v1: %w", err)
 		}
@@ -342,7 +341,6 @@ func skipTags(reader io.ReadSeeker) error {
 			return nil //nolint:nilerr // truncated ID3v2 is not fatal
 		}
 
-		//revive:disable-next-line:add-constant
 		size := (int64(header[3]) << 21) | (int64(header[4]) << 14) |
 			(int64(header[5]) << 7) | int64(header[6])
 
@@ -456,7 +454,7 @@ func skipID3v2(reader io.ReadSeeker) int {
 	}
 
 	// Check for "ID3" signature.
-	//nolint:gosec // G602: bounds guaranteed by bytesRead < 10 guard above.
+
 	if header[0] != 'I' || header[1] != 'D' || header[2] != '3' {
 		// No ID3v2 tag — seek back to start.
 		if _, seekErr := reader.Seek(0, io.SeekStart); seekErr != nil {
@@ -467,8 +465,7 @@ func skipID3v2(reader io.ReadSeeker) int {
 	}
 
 	// Parse syncsafe size (4 bytes, 7 bits each).
-	//nolint:gosec // Bounds guaranteed by bytesRead < 10 guard above.
-	//revive:disable-next-line:add-constant
+
 	size := (int(header[6]) << 21) | (int(header[7]) << 14) | (int(header[8]) << 7) | int(
 		header[9],
 	)

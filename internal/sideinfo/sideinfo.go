@@ -43,18 +43,17 @@ type bitReader struct {
 func (r *bitReader) readBits(count int) int {
 	// Load up to 5 bytes into a uint64 accumulator.
 	byteIdx := r.pos >> 3
-	bitOff := uint(r.pos & 7) //nolint:gosec // pos is always non-negative
+	bitOff := uint(r.pos & 7)
 
 	var acc uint64
 
 	for i := range min(32-byteIdx, 5) {
-		shift := (7 - i) * 8                           // 56, 48, 40, 32, 24
-		acc |= uint64(r.buf[byteIdx+i]) << uint(shift) //nolint:gosec // byteIdx+i validated by min bound
+		shift := (7 - i) * 8 // 56, 48, 40, 32, 24
+		acc |= uint64(r.buf[byteIdx+i]) << uint(shift)
 	}
 
 	acc <<= bitOff
-	//nolint:gosec // count is 1..12; no overflow risk
-	result := int(acc >> uint(64-count))
+	result := int(acc >> uint(64-count)) // #nosec G115 -- count is 1..12; no overflow risk
 	r.pos += count
 
 	return result
@@ -72,8 +71,6 @@ var sideInfoBitsToRead = [2][4]int{ //nolint:gochecknoglobals // immutable looku
 // Read reads and parses the side information from an MP3 frame into dst.
 // The caller provides dst (typically embedded in Frame as a value field).
 // dst is fully overwritten for active granules/channels.
-//
-//revive:disable:cognitive-complexity
 func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) error {
 	nch := header.Channels()
 
@@ -116,11 +113,10 @@ func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) e
 	// Get the rest of the side information
 	for granule := range header.Granules() {
 		for channel := range nch {
-			//revive:disable:add-constant
 			dst.Part2And3Length[granule][channel] = reader.readBits(12)
 			dst.BigValues[granule][channel] = min(reader.readBits(9), 288)
 			dst.GlobalGain[granule][channel] = reader.readBits(8)
-			//nolint:gosec // bitsToRead is [4]int, index 3 always valid
+
 			dst.ScalefacCompress[granule][channel] = reader.readBits(bitsToRead[3])
 
 			dst.WinSwitchFlag[granule][channel] = reader.readBits(1)

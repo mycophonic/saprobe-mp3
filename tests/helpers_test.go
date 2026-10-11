@@ -32,6 +32,6 @@ func decodeMp3(path string) ([]byte, mp3.PCMFormat, error) {
 
 // Benchmark infrastructure.
 
-var benchOpts = agar.BenchOptions{}.WithDefaults() //nolint:gochecknoglobals
+var benchOpts = agar.BenchOptions{}.WithDefaults() //nolint:gochecknoglobals // shared benchmark options, read-only
 
 const benchDuration = 10 // seconds of audio

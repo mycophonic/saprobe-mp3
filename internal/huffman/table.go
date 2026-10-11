@@ -96,8 +96,10 @@ func enumerateCodes(nodes []uint16, treelen int) []codeEntry {
 		node := nodes[idx]
 		if (node & leafMask) == 0 {
 			// Leaf: high byte is 0, low byte is the packed symbol value.
-			//nolint:gosec // node low byte is 0-255, fits uint8
-			entries = append(entries, codeEntry{code, depth, uint8(node)})
+			entries = append(
+				entries,
+				codeEntry{code, depth, uint8(node)},
+			) // #nosec G115 -- node low byte is 0-255, fits uint8
 
 			return
 		}
@@ -161,8 +163,11 @@ func buildTableLevel(table *[]int16, codes []codeEntry, peekBits int) int {
 	for _, entry := range codes {
 		if entry.length <= peekBits {
 			// Leaf: fill all entries that match this code (don't-care suffix bits).
-			//nolint:gosec // length and value are small; no overflow risk
-			leaf := int16(entry.length)<<8 | int16(entry.value)
+			leaf := int16(
+				entry.length,
+			)<<8 | int16(
+				entry.value,
+			) // #nosec G115 -- length and value are small; no overflow risk
 			idx := entry.code << (peekBits - entry.length)
 			count := 1 << (peekBits - entry.length)
 
@@ -212,8 +217,11 @@ func buildTableLevel(table *[]int16, codes []codeEntry, peekBits int) int {
 
 		// Branch entry: negative int16.
 		// Decode recovers: nextPeek = entry & 7, offset = -(entry >> 3).
-		//nolint:gosec // secondaryBase checked above; fits in int16 encoding
-		(*table)[base+prefix] = int16((-secondaryBase)<<3) | int16(nextPeek)
+		(*table)[base+prefix] = int16(
+			(-secondaryBase)<<3,
+		) | int16(
+			nextPeek,
+		) // #nosec G115 -- secondaryBase checked above; fits in int16 encoding
 	}
 
 	return base

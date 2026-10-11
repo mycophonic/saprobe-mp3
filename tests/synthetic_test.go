@@ -37,7 +37,7 @@ func mp3DecoderName(dec mp3DecoderType) string {
 
 // mp3SampleRates covers all supported MP3 sample rates (MPEG 1 + MPEG 2).
 //
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals // the test matrix, read-only test data
 var mp3SampleRates = []int{
 	// MPEG 2
 	16000, 22050, 24000,
@@ -47,7 +47,7 @@ var mp3SampleRates = []int{
 
 // mp3ChannelCounts covers mono and stereo.
 //
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals // the test matrix, read-only test data
 var mp3ChannelCounts = []int{1, 2}
 
 // mp3BitrateConfig describes an encoding bitrate mode.
@@ -105,7 +105,6 @@ func TestMP3Decode(t *testing.T) {
 	}
 }
 
-//nolint:cyclop // Test orchestration requires many steps.
 func runMP3Test(
 	t *testing.T,
 	decoders []mp3DecoderType,
