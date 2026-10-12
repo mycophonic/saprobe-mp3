@@ -67,8 +67,6 @@ golangci:
         - path: ^tests/benchmark_test\.go$
           linters: [gocritic]
           text: appendCombine
-        - path: ^tests/helpers_test\.go$
-          linters: [errcheck]
           # --- end of the onboarding backlog.
 licenses:
   ignore:
