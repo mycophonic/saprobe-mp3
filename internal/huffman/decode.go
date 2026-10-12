@@ -163,6 +163,8 @@ func DecodePair(bitCache *BitCache, tableNum int) (x, y int) {
 //
 // The tableNum must be 32 or 33. The caller checks bit position bounds after the
 // decode loop.
+//
+//revive:disable-next-line:function-result-limit // a count1 codeword is four values (v, w, x, y) by the format's definition
 func DecodeQuad(bitCache *BitCache, tableNum int) (v, w, x, y int) {
 	table := &quadTables[tableNum-32]
 
