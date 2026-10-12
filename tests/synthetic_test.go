@@ -196,10 +196,7 @@ func runMP3Decode(
 
 	switch dec {
 	case mp3DecoderSaprobe:
-		pcm, format, err := decodeMp3(encPath)
-		if err != nil {
-			t.Fatalf("saprobe decode: %v", err)
-		}
+		pcm, format := decodeMp3(t, encPath)
 
 		return pcm, &format
 
