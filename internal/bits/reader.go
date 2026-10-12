@@ -95,7 +95,8 @@ func (r *Reader) ReadBits(count int) int {
 	// Shift out the already-consumed bits within the first byte,
 	// then shift right to isolate the requested count bits.
 	acc <<= bitOff
-	result := int(acc >> uint(64-count)) // #nosec G115 -- count is 1..32; no overflow risk
+	// #nosec G115 -- count is 1..32; no overflow risk
+	result := int(acc >> uint(64-count)) //nolint:mnd // the accumulator is a uint64
 
 	r.pos += count
 
@@ -153,7 +154,8 @@ func (r *Reader) PeekBits(count int) int {
 
 	acc <<= bitOff
 
-	return int(acc >> uint(64-count)) // #nosec G115 -- count is 1..32; no overflow risk
+	// #nosec G115 -- count is 1..32; no overflow risk
+	return int(acc >> uint(64-count)) //nolint:mnd // the accumulator is a uint64
 }
 
 // Skip advances the bit position by count bits without reading data.

@@ -19,12 +19,16 @@ var winData [4][longN]float32 //nolint:gochecknoglobals // precomputed lookup ta
 func init() {
 	// Type 0: Normal window (long block).
 	for i := range longN {
-		winData[0][i] = float32(math.Sin(math.Pi / longN * (float64(i) + 0.5)))
+		winData[0][i] = float32(
+			math.Sin(math.Pi / longN * (float64(i) + 0.5)), //nolint:mnd // the spec's window, sin(π/N·(i+1/2))
+		)
 	}
 
 	// Type 1: Start window (long-to-short transition).
 	for i := range longHalfN {
-		winData[1][i] = float32(math.Sin(math.Pi / longN * (float64(i) + 0.5)))
+		winData[1][i] = float32(
+			math.Sin(math.Pi / longN * (float64(i) + 0.5)), //nolint:mnd // the spec's window, sin(π/N·(i+1/2))
+		)
 	}
 
 	for i := longHalfN; i < longHalfN+shortHalfN; i++ {
@@ -41,7 +45,9 @@ func init() {
 
 	// Type 2: Short window (12-point).
 	for i := range shortN {
-		winData[2][i] = float32(math.Sin(math.Pi / shortN * (float64(i) + 0.5)))
+		winData[2][i] = float32(
+			math.Sin(math.Pi / shortN * (float64(i) + 0.5)), //nolint:mnd // the spec's window, sin(π/N·(i+1/2))
+		)
 	}
 
 	for i := shortN; i < longN; i++ {
@@ -62,7 +68,9 @@ func init() {
 	}
 
 	for i := longHalfN; i < longN; i++ {
-		winData[3][i] = float32(math.Sin(math.Pi / longN * (float64(i) + 0.5)))
+		winData[3][i] = float32(
+			math.Sin(math.Pi / longN * (float64(i) + 0.5)), //nolint:mnd // the spec's window, sin(π/N·(i+1/2))
+		)
 	}
 }
 

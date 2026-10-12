@@ -53,7 +53,8 @@ func (r *bitReader) readBits(count int) int {
 	}
 
 	acc <<= bitOff
-	result := int(acc >> uint(64-count)) // #nosec G115 -- count is 1..12; no overflow risk
+	// #nosec G115 -- count is 1..12; no overflow risk
+	result := int(acc >> uint(64-count)) //nolint:mnd // the accumulator is a uint64
 	r.pos += count
 
 	return result
@@ -113,8 +114,9 @@ func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) e
 	// Get the rest of the side information
 	for granule := range header.Granules() {
 		for channel := range nch {
-			dst.Part2And3Length[granule][channel] = reader.readBits(12)
-			dst.BigValues[granule][channel] = min(reader.readBits(9), 288)
+			dst.Part2And3Length[granule][channel] = reader.readBits(12) //nolint:mnd // part2_3_length is a 12-bit field
+			// big_values counts pairs of lines, so at most half the granule.
+			dst.BigValues[granule][channel] = min(reader.readBits(9), consts.SamplesPerGr/2)
 			dst.GlobalGain[granule][channel] = reader.readBits(8)
 
 			dst.ScalefacCompress[granule][channel] = reader.readBits(bitsToRead[3])
