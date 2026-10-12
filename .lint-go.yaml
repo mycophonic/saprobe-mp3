@@ -33,7 +33,7 @@ golangci:
         # fixed, silenced inline with its reason, or raised as a rule. The last
         # alignment pull request deletes this block.
         - path: ^decode\.go$
-          linters: [mnd, modernize]
+          linters: [mnd]
         - path: ^cmd/mp3-example-decoder/main\.go$
           linters: [mnd, reassign]
         - path: ^internal/bits/reader\.go$
@@ -46,8 +46,6 @@ golangci:
           linters: [mnd]
         - path: ^internal/frameheader/frameheader\.go$
           linters: [gocognit]
-        - path: ^internal/frameheader/frameheader_test\.go$
-          linters: [modernize]
         - path: ^internal/huffman/decode\.go$
           linters: [revive]
           text: function-result-limit
