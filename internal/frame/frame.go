@@ -537,19 +537,19 @@ func (f *Frame) subbandSynthesis(gr, ch int, out []byte) {
 
 			idx := 4 * (subbands*ss + sampleIdx)
 			if nch == 1 {
-				out[idx] = byte(s)
+				out[idx] = byte(s) // #nosec G115 -- the low byte of s, clamped to int16 above; the high byte is next
 				out[idx+1] = byte(s >> 8)
-				out[idx+2] = byte(s)
+				out[idx+2] = byte(s) // #nosec G115 -- the low byte of s, clamped to int16 above; the high byte is next
 				out[idx+3] = byte(s >> 8)
 
 				continue
 			}
 
 			if ch == 0 {
-				out[idx] = byte(s)
+				out[idx] = byte(s) // #nosec G115 -- the low byte of s, clamped to int16 above; the high byte is next
 				out[idx+1] = byte(s >> 8)
 			} else {
-				out[idx+2] = byte(s)
+				out[idx+2] = byte(s) // #nosec G115 -- the low byte of s, clamped to int16 above; the high byte is next
 				out[idx+3] = byte(s >> 8)
 			}
 		}

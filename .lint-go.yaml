@@ -33,7 +33,7 @@ golangci:
         # fixed, silenced inline with its reason, or raised as a rule. The last
         # alignment pull request deletes this block.
         - path: ^internal/frame/frame\.go$
-          linters: [gocognit, gosec]
+          linters: [gocognit]
         - path: ^internal/frameheader/frameheader\.go$
           linters: [gocognit]
         - path: ^internal/huffman/table\.go$
