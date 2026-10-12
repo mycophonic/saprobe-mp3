@@ -82,7 +82,7 @@ func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) e
 	n, err := source.ReadFull(reader.buf[:sideInfoSize])
 	if n < sideInfoSize {
 		if errors.Is(err, io.EOF) {
-			return &consts.UnexpectedEOF{At: "sideinfo.Read"}
+			return &consts.UnexpectedEOFError{At: "sideinfo.Read"}
 		}
 
 		return fmt.Errorf("mp3: couldn't read sideinfo %d bytes: %w", sideInfoSize, err)

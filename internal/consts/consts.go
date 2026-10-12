@@ -1,11 +1,11 @@
 package consts
 
-// UnexpectedEOF represents an unexpected end of file during MP3 decoding.
-type UnexpectedEOF struct {
+// UnexpectedEOFError represents an unexpected end of file during MP3 decoding.
+type UnexpectedEOFError struct {
 	At string
 }
 
-func (u *UnexpectedEOF) Error() string {
+func (u *UnexpectedEOFError) Error() string {
 	return "mp3: unexpected EOF at " + u.At
 }
 

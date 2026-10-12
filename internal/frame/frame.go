@@ -79,7 +79,7 @@ func (f *Frame) Read(source consts.FullReader, position int64) (int64, error) {
 
 		if n, err = source.ReadFull(crc[:]); n < 2 {
 			if errors.Is(err, io.EOF) {
-				return 0, &consts.UnexpectedEOF{At: "frame.Read: CRC"}
+				return 0, &consts.UnexpectedEOFError{At: "frame.Read: CRC"}
 			}
 
 			return 0, fmt.Errorf("mp3: frame.Read CRC: %w", err)

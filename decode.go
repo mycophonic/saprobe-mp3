@@ -259,7 +259,7 @@ func (d *Decoder) readFrame() ([]byte, error) {
 				return nil, io.EOF
 			}
 
-			if _, ok := errors.AsType[*consts.UnexpectedEOF](readErr); ok {
+			if _, ok := errors.AsType[*consts.UnexpectedEOFError](readErr); ok {
 				return nil, io.EOF
 			}
 
