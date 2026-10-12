@@ -48,7 +48,7 @@ func TestReadBits_MatchesOriginal(t *testing.T) {
 func TestReadBit(t *testing.T) {
 	t.Parallel()
 
-	// 0xA5 = 10100101
+	// 0xA5 is 10100101 in binary.
 	r := bits.NewReader([]byte{0xA5})
 
 	want := []int{1, 0, 1, 0, 0, 1, 0, 1}
@@ -318,7 +318,7 @@ func TestReadBits_AllWidths(t *testing.T) {
 func TestReadBits_SequentialSmallReads(t *testing.T) {
 	t.Parallel()
 
-	// 0b10110100 = 0xB4
+	// 0xB4 is 10110100 in binary.
 	r := bits.NewReader([]byte{0xB4})
 
 	// Read as 2+3+3 = 8 bits
@@ -380,7 +380,7 @@ func TestPeekBits_DoesNotAffectError(t *testing.T) {
 func TestPeekBits_PartialWidth(t *testing.T) {
 	t.Parallel()
 
-	// 0xB4 = 10110100
+	// 0xB4 is 10110100 in binary.
 	r := bits.NewReader([]byte{0xB4})
 	r.ReadBits(2) // consume "10", now at bit 2
 
