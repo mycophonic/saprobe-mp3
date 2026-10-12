@@ -72,6 +72,8 @@ var sideInfoBitsToRead = [2][4]int{ //nolint:gochecknoglobals // immutable looku
 // Read reads and parses the side information from an MP3 frame into dst.
 // The caller provides dst (typically embedded in Frame as a value field).
 // dst is fully overwritten for active granules/channels.
+//
+//nolint:gocognit // the side information's fields per version, granule and channel are the spec's layout
 func Read(source consts.FullReader, header *frameheader.Header, dst *SideInfo) error {
 	nch := header.Channels()
 

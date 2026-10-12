@@ -152,6 +152,8 @@ func buildFlatTable(codes []codeEntry, primaryBits int) []int16 {
 
 // buildTableLevel appends one lookup level to the table and returns the base offset
 // of this level within the table slice.
+//
+//nolint:gocognit // the multi-level table build branches on each code's length against the level's width
 func buildTableLevel(table *[]int16, codes []codeEntry, peekBits int) int {
 	base := len(*table)
 	size := 1 << peekBits

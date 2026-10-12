@@ -306,6 +306,8 @@ func Parse(raw uint32) (Header, error) {
 // It returns the parsed header, the byte position where the header starts,
 // and any error. On clean EOF at the start of a read, it returns io.EOF.
 // Stack-allocated buffers ensure zero heap allocation in the sync loop.
+//
+//nolint:gocognit // the sync scan is the format's resync procedure, one loop
 func Read(source consts.FullReader, position int64) (Header, int64, error) {
 	var buf [4]byte
 

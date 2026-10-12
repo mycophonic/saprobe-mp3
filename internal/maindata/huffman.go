@@ -11,7 +11,7 @@ import (
 )
 
 //nolint:varnamelen // short names are MPEG spec constants
-func readHuffman(
+func readHuffman( //nolint:gocognit // the spec's regions and their guards; hot path
 	bitStream *bits.Reader,
 	header *frameheader.Header,
 	sideInfo *sideinfo.SideInfo,
