@@ -38,9 +38,6 @@ golangci:
           linters: [mnd, reassign]
         - path: ^internal/bits/reader\.go$
           linters: [mnd]
-        - path: ^internal/bits/reader_test\.go$
-          linters: [gocritic]
-          text: commentedOutCode
         - path: ^internal/consts/consts\.go$
           linters: [errname, revive]
         - path: ^internal/frame/frame\.go$
@@ -64,9 +61,6 @@ golangci:
           linters: [gocognit, mnd]
         - path: ^internal/sideinfo/sideinfo\.go$
           linters: [gocognit, mnd]
-        - path: ^tests/benchmark_test\.go$
-          linters: [gocritic]
-          text: appendCombine
           # --- end of the onboarding backlog.
 licenses:
   ignore:

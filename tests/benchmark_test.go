@@ -78,11 +78,11 @@ func TestMP3BenchmarkDecode(t *testing.T) {
 
 		t.Logf("  MP3 size: %.1f MB (%d bytes)", float64(len(encoded))/(1024*1024), len(encoded))
 
-		// Benchmark saprobe decode.
-		results = append(results, benchMP3DecodeSaprobe(t, bc.BenchFormat, encoded))
-
-		// Benchmark ffmpeg decode.
-		results = append(results, benchMP3DecodeFFmpeg(t, bc, encPath))
+		// Benchmark saprobe and ffmpeg decode.
+		results = append(results,
+			benchMP3DecodeSaprobe(t, bc.BenchFormat, encoded),
+			benchMP3DecodeFFmpeg(t, bc, encPath),
+		)
 
 		// Benchmark lame decode.
 		if lameBinErr == nil {
