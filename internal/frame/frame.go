@@ -72,9 +72,12 @@ func (f *Frame) Read(source consts.FullReader, position int64) (int64, error) {
 	}
 
 	if header.Protected() {
-		var crc [2]byte
+		var (
+			crc [2]byte
+			n   int
+		)
 
-		if n, err := source.ReadFull(crc[:]); n < 2 {
+		if n, err = source.ReadFull(crc[:]); n < 2 {
 			if errors.Is(err, io.EOF) {
 				return 0, &consts.UnexpectedEOF{At: "frame.Read: CRC"}
 			}
@@ -85,7 +88,7 @@ func (f *Frame) Read(source consts.FullReader, position int64) (int64, error) {
 
 	f.header = &header
 
-	if err := sideinfo.Read(source, f.header, &f.sideInfo); err != nil {
+	if err = sideinfo.Read(source, f.header, &f.sideInfo); err != nil {
 		return 0, fmt.Errorf("mp3: frame.Read sideinfo: %w", err)
 	}
 

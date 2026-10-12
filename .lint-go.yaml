@@ -44,7 +44,7 @@ golangci:
         - path: ^internal/consts/consts\.go$
           linters: [errname, revive]
         - path: ^internal/frame/frame\.go$
-          linters: [gocognit, gosec, govet]
+          linters: [gocognit, gosec]
         - path: ^internal/frame/tables\.go$
           linters: [mnd]
         - path: ^internal/frameheader/frameheader\.go$
