@@ -67,6 +67,8 @@ const (
 
 // FullReader is an interface for reading complete byte slices.
 type FullReader interface {
+	// ReadFull reads exactly len(buf) bytes into buf, returning the number
+	// of bytes read and the error that stopped a short read.
 	ReadFull(buf []byte) (int, error)
 }
 

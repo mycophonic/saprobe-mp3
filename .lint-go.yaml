@@ -38,17 +38,12 @@ golangci:
           linters: [mnd]
         - path: ^internal/bits/reader\.go$
           linters: [mnd]
-        - path: ^internal/consts/consts\.go$
-          linters: [revive]
         - path: ^internal/frame/frame\.go$
           linters: [gocognit, gosec]
         - path: ^internal/frame/tables\.go$
           linters: [mnd]
         - path: ^internal/frameheader/frameheader\.go$
           linters: [gocognit]
-        - path: ^internal/huffman/decode\.go$
-          linters: [revive]
-          text: function-result-limit
         - path: ^internal/huffman/table\.go$
           linters: [gocognit]
         - path: ^internal/imdct/imdct\.go$
