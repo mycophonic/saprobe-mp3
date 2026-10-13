@@ -480,8 +480,7 @@ func TestRead_UnexpectedEOF_ShortInitialRead(t *testing.T) {
 		t.Fatal("Read should have returned an error")
 	}
 
-	var eof *consts.UnexpectedEOF
-	if !errors.As(err, &eof) {
+	if _, ok := errors.AsType[*consts.UnexpectedEOF](err); !ok {
 		t.Errorf("Read error: got %T (%v), want *consts.UnexpectedEOF", err, err)
 	}
 }
@@ -497,8 +496,7 @@ func TestRead_UnexpectedEOF_DuringSyncScan(t *testing.T) {
 		t.Fatal("Read should have returned an error")
 	}
 
-	var eof *consts.UnexpectedEOF
-	if !errors.As(err, &eof) {
+	if _, ok := errors.AsType[*consts.UnexpectedEOF](err); !ok {
 		t.Errorf("Read error: got %T (%v), want *consts.UnexpectedEOF", err, err)
 	}
 }
