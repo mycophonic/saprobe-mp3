@@ -30,7 +30,6 @@ import (
 	"os"
 
 	mp3 "github.com/mycophonic/saprobe-mp3"
-	"github.com/mycophonic/saprobe-mp3/version"
 )
 
 const formatWAV = "wav"
@@ -41,6 +40,11 @@ const (
 	wavHeaderSize  = 44
 	riffHeaderSize = 8
 )
+
+// version is the build's stamp: the shared build recipe sets it from `git describe`
+// through -X main.version; a plain `go build` leaves "dev". gochecknoglobals
+// exempts the name for this use.
+var version = "dev"
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -54,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.String())
+		fmt.Fprintln(os.Stdout, "mp3-example-decoder", version)
 		os.Exit(0)
 	}
 
