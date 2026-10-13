@@ -184,21 +184,25 @@ var (
 //nolint:gochecknoinits // precomputes the lookup tables once, at load
 func init() {
 	for i := range powtab34 {
-		powtab34[i] = float32(math.Pow(float64(i), 4.0/3.0))
+		powtab34[i] = float32(math.Pow(float64(i), 4.0/3.0)) //nolint:mnd // x^(4/3) is the spec's requantization power
 	}
 
 	for k := range pow2quarter {
-		pow2quarter[k] = float32(math.Pow(2.0, float64(k-pow2quarterBias)/4.0))
+		pow2quarter[k] = float32(
+			math.Pow(2.0, float64(k-pow2quarterBias)/4.0), //nolint:mnd // 2^(k/4), the spec's quarter-step gain
+		)
 	}
 
 	for i := range 64 {
 		for j := range 32 {
-			synthNWin[i][j] = float32(math.Cos(float64((16+i)*(2*j+1)) * (math.Pi / 64.0)))
+			synthNWin[i][j] = float32(
+				math.Cos(float64((16+i)*(2*j+1)) * (math.Pi / 64.0)), //nolint:mnd // the spec's cos((16+i)(2j+1)π/64)
+			)
 		}
 	}
 
 	for i := range 6 {
-		t := math.Tan(float64(i) * math.Pi / 12.0)
+		t := math.Tan(float64(i) * math.Pi / 12.0) //nolint:mnd // tan(iπ/12), the spec's intensity stereo ratio
 		isRatioL[i] = float32(t / (1.0 + t))
 		isRatioR[i] = float32(1.0 / (1.0 + t))
 	}

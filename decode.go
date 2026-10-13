@@ -33,6 +33,7 @@ const (
 	mpegVersionRsvd = 0x01 // Reserved (invalid)
 	mpegVersion2    = 0x02 // MPEG 2
 	mpegVersion1    = 0x03 // MPEG 1
+	layerRsvd       = 0x00 // Reserved layer (invalid)
 	channelModeMono = 0x03 // Mono channel mode
 )
 
@@ -62,9 +63,10 @@ const (
 	gaplessPaddingMask = 0xFFF // 12-bit mask for gapless padding field.
 )
 
-// ID3v2 constants.
+// ID3 tag constants.
 const (
-	id3v2HeaderSize = 10 // ID3v2 header: "ID3" (3) + version (2) + flags (1) + size (4).
+	id3v1TagSize    = 128 // ID3v1 tag: "TAG" + fixed fields, 128 bytes in all.
+	id3v2HeaderSize = 10  // ID3v2 header: "ID3" (3) + version (2) + flags (1) + size (4).
 )
 
 // Parsing thresholds.
@@ -328,8 +330,8 @@ func skipTags(reader io.ReadSeeker) error {
 
 	switch string(buf[:]) {
 	case "TAG":
-		// ID3v1 tag at start (non-standard). Skip past the 128-byte tag.
-		if _, err := reader.Seek(startPos+128, io.SeekStart); err != nil {
+		// ID3v1 tag at start (non-standard). Skip past it.
+		if _, err := reader.Seek(startPos+id3v1TagSize, io.SeekStart); err != nil {
 			return fmt.Errorf("skipping ID3v1: %w", err)
 		}
 
@@ -340,10 +342,10 @@ func skipTags(reader io.ReadSeeker) error {
 			return nil //nolint:nilerr // truncated ID3v2 is not fatal
 		}
 
-		size := (int64(header[3]) << 21) | (int64(header[4]) << 14) |
+		size := (int64(header[3]) << 21) | (int64(header[4]) << 14) | //nolint:mnd // syncsafe: 7-bit groups
 			(int64(header[5]) << 7) | int64(header[6])
 
-		if _, err := reader.Seek(startPos+10+size, io.SeekStart); err != nil {
+		if _, err := reader.Seek(startPos+id3v2HeaderSize+size, io.SeekStart); err != nil {
 			return fmt.Errorf("skipping ID3v2 body: %w", err)
 		}
 
@@ -465,9 +467,8 @@ func skipID3v2(reader io.ReadSeeker) int {
 
 	// Parse syncsafe size (4 bytes, 7 bits each).
 
-	size := (int(header[6]) << 21) | (int(header[7]) << 14) | (int(header[8]) << 7) | int(
-		header[9],
-	)
+	size := (int(header[6]) << 21) | (int(header[7]) << 14) | //nolint:mnd // syncsafe: 7-bit groups
+		(int(header[8]) << 7) | int(header[9])
 
 	// Total tag size = header + size.
 	totalSize := id3v2HeaderSize + size
@@ -516,7 +517,7 @@ func isValidFrameHeader(header []byte) bool {
 	}
 
 	// Layer 00 is reserved.
-	if layerBits == 0x00 {
+	if layerBits == layerRsvd {
 		return false
 	}
 

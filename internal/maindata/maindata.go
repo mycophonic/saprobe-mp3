@@ -101,7 +101,7 @@ func initSlen() (nSlen2 [512]int) {
 	for i := range 4 {
 		for j := range 3 {
 			n := j + i*3
-			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15)
+			nSlen2[n+500] = i | (j << 3) | (2 << 12) | (1 << 15) //nolint:mnd // slen packing: fields at bits 0, 3, 6, 9, 12 (table) and 15 (preflag)
 		}
 	}
 
@@ -109,8 +109,8 @@ func initSlen() (nSlen2 [512]int) {
 		for j := range 5 {
 			for k := range 4 {
 				for l := range 4 {
-					n := l + k*4 + j*16 + i*80
-					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12)
+					n := l + k*4 + j*16 + i*80                                 //nolint:mnd // row-major index into the 5×5×4×4 table
+					nSlen2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12) //nolint:mnd // slen packing: fields at bits 0, 3, 6, 9, 12 (table) and 15 (preflag)
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func initSlen() (nSlen2 [512]int) {
 		for j := range 5 {
 			for k := range 4 {
 				n := k + j*4 + i*20
-				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12)
+				nSlen2[n+400] = i | (j << 3) | (k << 6) | (1 << 12) //nolint:mnd // slen packing: fields at bits 0, 3, 6, 9, 12 (table) and 15 (preflag)
 			}
 		}
 	}
@@ -333,7 +333,7 @@ func getScaleFactorsMpeg2(
 		part2Start := bitStream.BitPos()
 		numbits := 0
 		slen := nSlen2[sideInfo.ScalefacCompress[0][channel]]
-		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1
+		sideInfo.Preflag[0][channel] = (slen >> 15) & 0x1 //nolint:mnd // the packed slen's preflag bit
 
 		blockTypeIdx := 0
 		if sideInfo.BlockType[0][channel] == 2 {
@@ -343,7 +343,7 @@ func getScaleFactorsMpeg2(
 			}
 		}
 
-		d := (slen >> 12) & 0x7
+		d := (slen >> 12) & 0x7 //nolint:mnd // the packed slen's table-select field
 
 		// Stack-local array replaces dynamic append.
 		var sf [45]int
@@ -351,7 +351,7 @@ func getScaleFactorsMpeg2(
 		sfIdx := 0
 
 		for idx := range 4 {
-			num := slen & 0x7
+			num := slen & 0x7 //nolint:mnd // each packed slen field is 3 bits
 			slen >>= 3
 
 			if num > 0 {
