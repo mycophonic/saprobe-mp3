@@ -173,7 +173,7 @@ func Read(
 		count, err := source.ReadFull(res.buf[res.len:newLen])
 		if count < mainDataSize {
 			if errors.Is(err, io.EOF) {
-				return false, &consts.UnexpectedEOF{At: "maindata.Read (1)"}
+				return false, &consts.UnexpectedEOFError{At: "maindata.Read (1)"}
 			}
 
 			return false, fmt.Errorf("mp3: maindata.Read (1): %w", err)
@@ -201,7 +201,7 @@ func Read(
 	count, err := source.ReadFull(res.buf[offset : offset+mainDataSize])
 	if count < mainDataSize {
 		if errors.Is(err, io.EOF) {
-			return false, &consts.UnexpectedEOF{At: "maindata.Read (2)"}
+			return false, &consts.UnexpectedEOFError{At: "maindata.Read (2)"}
 		}
 
 		return false, fmt.Errorf("mp3: maindata.Read (2): %w", err)

@@ -316,7 +316,7 @@ func Read(source consts.FullReader, position int64) (Header, int64, error) {
 				return Header{}, 0, io.EOF
 			}
 
-			return Header{}, 0, &consts.UnexpectedEOF{At: "readHeader (1)"}
+			return Header{}, 0, &consts.UnexpectedEOFError{At: "readHeader (1)"}
 		}
 
 		return Header{}, 0, fmt.Errorf("frameheader: initial read: %w", err)
@@ -335,7 +335,7 @@ func Read(source consts.FullReader, position int64) (Header, int64, error) {
 
 		if _, err = source.ReadFull(buf[3:4]); err != nil {
 			if errors.Is(err, io.EOF) {
-				return Header{}, 0, &consts.UnexpectedEOF{At: "readHeader (2)"}
+				return Header{}, 0, &consts.UnexpectedEOFError{At: "readHeader (2)"}
 			}
 
 			return Header{}, 0, fmt.Errorf("frameheader: sync scan read: %w", err)

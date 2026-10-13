@@ -39,7 +39,7 @@ golangci:
         - path: ^internal/bits/reader\.go$
           linters: [mnd]
         - path: ^internal/consts/consts\.go$
-          linters: [errname, revive]
+          linters: [revive]
         - path: ^internal/frame/frame\.go$
           linters: [gocognit, gosec]
         - path: ^internal/frame/tables\.go$
