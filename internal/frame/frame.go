@@ -167,7 +167,7 @@ func requantSample(is, gain float32) float32 {
 // granule/channel using scale factors and global gain.
 //
 //nolint:varnamelen // short names mirror the MPEG spec
-func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) {
+func (f *Frame) requantize(gr, ch int, sfBandLong, sfBandShort []int) { //nolint:gocognit // spec's branching; hot path
 	si := &f.sideInfo
 	md := &f.mainData
 
@@ -324,7 +324,7 @@ func (f *Frame) reorder(gr, ch int, sfBandShort []int) {
 // stereo applies MS stereo and/or intensity stereo processing.
 //
 //nolint:varnamelen // short names mirror the MPEG spec
-func (f *Frame) stereo(gr int, sfBandLong, sfBandShort []int) {
+func (f *Frame) stereo(gr int, sfBandLong, sfBandShort []int) { //nolint:gocognit // the spec's stereo cases; hot path
 	md := &f.mainData
 
 	if f.header.UseMSStereo() {
@@ -489,7 +489,7 @@ func (f *Frame) frequencyInversion(gr, ch int) {
 // producing 576 PCM samples (18 iterations × 32 samples) for one granule/channel.
 //
 //nolint:varnamelen // short names are MPEG spec constants
-func (f *Frame) subbandSynthesis(gr, ch int, out []byte) {
+func (f *Frame) subbandSynthesis(gr, ch int, out []byte) { //nolint:gocognit // the spec's filterbank; hot path
 	var sVec [subbands]float32
 
 	nch := f.header.Channels()

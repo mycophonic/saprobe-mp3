@@ -97,6 +97,7 @@ var scalefacSizesMpeg2 = [3][6][4]int{ //nolint:gochecknoglobals // immutable lo
 
 var nSlen2 = initSlen() //nolint:gochecknoglobals // immutable lookup table (MPEG 2.0 slen for 'normal' mode)
 
+//nolint:gocognit // the nested loops are the spec's scalefac_compress table, written out
 func initSlen() (nSlen2 [512]int) {
 	for i := range 4 {
 		for j := range 3 {
@@ -220,6 +221,7 @@ func Read(
 	return true, getScaleFactorsMpeg1(nch, &reader, header, sideInfo, dst)
 }
 
+//nolint:gocognit // scfsi, block type and mixed mode select the spec's scale-factor layout; hot path
 func getScaleFactorsMpeg1(
 	nch int,
 	bitStream *bits.Reader,
@@ -321,7 +323,7 @@ func getScaleFactorsMpeg1(
 }
 
 //nolint:varnamelen // short names mirror the MPEG2 spec
-func getScaleFactorsMpeg2(
+func getScaleFactorsMpeg2( //nolint:gocognit // the spec's scale-factor layout; hot path
 	bitStream *bits.Reader,
 	header *frameheader.Header,
 	sideInfo *sideinfo.SideInfo,
