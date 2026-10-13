@@ -35,7 +35,7 @@ golangci:
         - path: ^decode\.go$
           linters: [mnd]
         - path: ^cmd/mp3-example-decoder/main\.go$
-          linters: [mnd, reassign]
+          linters: [mnd]
         - path: ^internal/bits/reader\.go$
           linters: [mnd]
         - path: ^internal/consts/consts\.go$
