@@ -14,11 +14,11 @@
    limitations under the License.
 */
 
-// mp3-example-decoder decodes an MP3 file to WAV or raw PCM on stdout.
+// decoder decodes an MP3 file to WAV or raw PCM on stdout.
 //
 // Usage:
 //
-//	mp3-example-decoder [-format wav|pcm] <input.mp3 | ->
+//	decoder [-format wav|pcm] <input.mp3 | ->
 package main
 
 import (
@@ -41,7 +41,7 @@ const (
 	riffHeaderSize = 8
 )
 
-// version is the build's stamp: the shared build recipe sets it from `git describe`
+// version is the build's stamp: the build recipe sets it from `git describe`
 // through -X main.version; a plain `go build` leaves "dev". gochecknoglobals
 // exempts the name for this use.
 var version = "dev"
@@ -58,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Fprintln(os.Stdout, "mp3-example-decoder", version)
+		fmt.Fprintln(os.Stdout, "decoder", version)
 		os.Exit(0)
 	}
 
